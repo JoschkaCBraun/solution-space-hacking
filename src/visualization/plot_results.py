@@ -5,8 +5,9 @@ Visualization script for model evaluation results.
 import json
 import matplotlib.pyplot as plt
 import pandas as pd
+import numpy as np
 from pathlib import Path
-from typing import Dict, List
+from typing import Dict, List, Tuple, Optional
 import seaborn as sns
 from ..openrouter.openrouter_models import apps_evaluation_models
 
@@ -147,42 +148,9 @@ class ResultsVisualizer:
         # Add grid
         ax.grid(True, alpha=0.3, axis='y')
     
-    def plot_all_metrics(self, results_file: str, output_file: str = None):
-        """Create comprehensive visualization of all metrics."""
-        # Load results
-        results = self.load_results(results_file)
-        
-        # Extract metadata
-        metadata = results["metadata"]
-        split = metadata["split"]
-        n_samples = metadata["n_problems"]
-        
-        # Extract metrics
-        df = self.extract_metrics(results)
-        
-        if df.empty:
-            print("No completed results found to plot.")
-            return
-        
-        # Calculate answer lengths and token usage
-        answer_lengths = self.calculate_answer_lengths(results)
-        token_stats = self.calculate_token_usage_stats(results)
-        
-        df['avg_answer_length'] = df['model'].map(answer_lengths)
-        df['max_length_rate'] = df['model'].map({k: v['max_length_rate'] for k, v in token_stats.items()})
-        df['near_max_rate'] = df['model'].map({k: v['near_max_rate'] for k, v in token_stats.items()})
-        df['avg_completion_tokens'] = df['model'].map({k: v['avg_completion_tokens'] for k, v in token_stats.items()})
-        
-        # Create figure with subplots (4x3 to accommodate 11 metrics)
-        fig, axes = plt.subplots(4, 3, figsize=(18, 20))
-        fig.suptitle(f'Model Evaluation Results - {split.upper()} Split, {n_samples} Samples', 
-                    fontsize=16, fontweight='bold')
-        
-        # Add more space between subplots
-        plt.subplots_adjust(hspace=0.4, wspace=0.3)
-        
-        # Define metrics to plot
-        metrics = [
+    def _get_metrics_to_plot(self):
+        """Define metrics to plot with their display titles."""
+        return [
             ('api_success_rate', 'API Success Rate'),
             ('code_extraction_rate', 'Code Extraction Rate'),
             ('thinking_extraction_rate', 'Thinking Extraction Rate'),
@@ -195,31 +163,93 @@ class ResultsVisualizer:
             ('near_max_rate', 'Near Max Length Rate'),
             ('avg_completion_tokens', 'Average Completion Tokens')
         ]
+    
+    def _add_computed_metrics(self, df: pd.DataFrame, results: Dict) -> pd.DataFrame:
+        """Add computed metrics to the dataframe."""
+        # Calculate answer lengths and token usage
+        answer_lengths = self.calculate_answer_lengths(results)
+        token_stats = self.calculate_token_usage_stats(results)
+        
+        df['avg_answer_length'] = df['model'].map(answer_lengths)
+        df['max_length_rate'] = df['model'].map({k: v['max_length_rate'] for k, v in token_stats.items()})
+        df['near_max_rate'] = df['model'].map({k: v['near_max_rate'] for k, v in token_stats.items()})
+        df['avg_completion_tokens'] = df['model'].map({k: v['avg_completion_tokens'] for k, v in token_stats.items()})
+        
+        return df
+    
+    def _create_figure_layout(self, metrics: List[tuple], split: str, n_samples: int) -> Tuple[plt.Figure, np.ndarray]:
+        """Create the figure layout for plotting."""
+        # Calculate grid dimensions
+        n_metrics = len(metrics)
+        n_cols = 3
+        n_rows = (n_metrics + n_cols - 1) // n_cols  # Ceiling division
+        
+        fig, axes = plt.subplots(n_rows, n_cols, figsize=(18, 5 * n_rows))
+        fig.suptitle(f'Model Evaluation Results - {split.upper()} Split, {n_samples} Samples', 
+                    fontsize=16, fontweight='bold')
+        
+        # Ensure axes is 2D array even for single row
+        if n_rows == 1:
+            axes = axes.reshape(1, -1)
+        
+        return fig, axes
+    
+    def _generate_output_filename(self, metadata: Dict, output_file: Optional[str]) -> Path:
+        """Generate output filename if not provided."""
+        if output_file is None:
+            timestamp = metadata.get("timestamp", "").split("T")[0].replace("-", "")
+            split = metadata["split"]
+            n_samples = metadata["n_problems"]
+            return self.figures_dir / f"evaluation_results_{timestamp}_{n_samples}samples_{split}.pdf"
+        return Path(output_file)
+    
+    def plot_all_metrics(self, results_file: str, output_file: str = None):
+        """Create comprehensive visualization of all metrics."""
+        # Load results
+        results = self.load_results(results_file)
+        metadata = results["metadata"]
+        
+        # Extract metrics
+        df = self.extract_metrics(results)
+        
+        if df.empty:
+            print("No completed results found to plot.")
+            return
+        
+        # Add computed metrics
+        df = self._add_computed_metrics(df, results)
+        
+        # Get metrics to plot
+        metrics = self._get_metrics_to_plot()
+        
+        # Create figure layout
+        fig, axes = self._create_figure_layout(metrics, metadata["split"], metadata["n_problems"])
+        
+        # Add more space between subplots
+        plt.subplots_adjust(hspace=0.4, wspace=0.3)
         
         # Create plots
         for i, (metric, title) in enumerate(metrics):
             row = i // 3
             col = i % 3
-            self.create_bar_plot(df, metric, title, split, n_samples, 
+            self.create_bar_plot(df, metric, title, metadata["split"], metadata["n_problems"], 
                                fig, axes[row, col], i)
         
         # Hide empty subplots
-        for i in range(len(metrics), 12):  # 4x3 = 12 total subplots
+        total_subplots = axes.size
+        for i in range(len(metrics), total_subplots):
             row = i // 3
             col = i % 3
-            axes[row, col].set_visible(False)
+            axes.flat[i].set_visible(False)
         
         # Adjust layout
         plt.tight_layout()
         plt.subplots_adjust(top=0.93, hspace=0.4, wspace=0.3)
         
         # Save plot
-        if output_file is None:
-            timestamp = metadata.get("timestamp", "").split("T")[0].replace("-", "")
-            output_file = self.figures_dir / f"evaluation_results_{timestamp}_{n_samples}samples_{split}.pdf"
-        
-        plt.savefig(output_file, dpi=300, bbox_inches='tight', format='pdf')
-        print(f"Plots saved to: {output_file}")
+        output_path = self._generate_output_filename(metadata, output_file)
+        plt.savefig(output_path, dpi=300, bbox_inches='tight', format='pdf')
+        print(f"Plots saved to: {output_path}")
         
         # Close plot to avoid displaying
         plt.close()
