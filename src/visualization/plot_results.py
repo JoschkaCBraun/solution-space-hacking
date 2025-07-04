@@ -113,12 +113,26 @@ class ResultsVisualizer:
     def create_bar_plot(self, df: pd.DataFrame, metric: str, title: str, 
                        split: str, n_samples: int, fig, ax, position: int):
         """Create a bar plot for a specific metric."""
-        # Sort by metric value (descending)
-        df_sorted = df.sort_values(metric, ascending=False)
+        # Use fixed order based on model size (small to large)
+        fixed_order = [
+            "meta-llama/llama-3.2-1b-instruct",
+            "deepseek/deepseek-r1-distill-qwen-1.5b",
+            "meta-llama/llama-3.2-3b-instruct",
+            "microsoft/phi-3.5-mini-128k-instruct",
+            "google/gemma-3-4b-it",
+            "deepseek/deepseek-r1-distill-qwen-7b",
+            "qwen/qwen3-8b",
+            "meta-llama/llama-3.1-8b-instruct",
+            "deepseek/deepseek-r1-distill-llama-8b"
+        ]
+        
+        # Reorder dataframe to match fixed order
+        df_ordered = df.set_index('model').reindex(fixed_order).reset_index()
+        df_ordered = df_ordered.dropna()  # Remove models not in results
         
         # Create bar plot
-        bars = ax.bar(range(len(df_sorted)), df_sorted[metric], 
-                     color=sns.color_palette("viridis", len(df_sorted)))
+        bars = ax.bar(range(len(df_ordered)), df_ordered[metric], 
+                     color=sns.color_palette("viridis", len(df_ordered)))
         
         # Customize plot
         ax.set_title(f"{title} - {split} split, {n_samples} samples", fontsize=10)
@@ -126,12 +140,12 @@ class ResultsVisualizer:
         ax.set_ylim(0, 1.05 if metric.endswith('_rate') else None)
         
         # Set x-axis labels
-        model_names = [name.split('/')[-1] for name in df_sorted['model']]
+        model_names = [name.split('/')[-1] for name in df_ordered['model']]
         ax.set_xticks(range(len(model_names)))
         ax.set_xticklabels(model_names, rotation=45, ha='right', fontsize=8)
         
         # Add value labels on bars
-        for i, (bar, value) in enumerate(zip(bars, df_sorted[metric])):
+        for i, (bar, value) in enumerate(zip(bars, df_ordered[metric])):
             if metric.endswith('_rate'):
                 ax.text(bar.get_x() + bar.get_width()/2, bar.get_height() + 0.01,
                        f'{value:.2f}', ha='center', va='bottom', fontsize=8)
@@ -241,12 +255,26 @@ class ResultsVisualizer:
         # Create plot
         fig, ax = plt.subplots(1, 1, figsize=(12, 8))
         
-        # Sort by metric value
-        df_sorted = df.sort_values(metric, ascending=False)
+        # Use fixed order based on model size (small to large)
+        fixed_order = [
+            "meta-llama/llama-3.2-1b-instruct",
+            "deepseek/deepseek-r1-distill-qwen-1.5b",
+            "meta-llama/llama-3.2-3b-instruct",
+            "microsoft/phi-3.5-mini-128k-instruct",
+            "google/gemma-3-4b-it",
+            "deepseek/deepseek-r1-distill-qwen-7b",
+            "qwen/qwen3-8b",
+            "meta-llama/llama-3.1-8b-instruct",
+            "deepseek/deepseek-r1-distill-llama-8b"
+        ]
+        
+        # Reorder dataframe to match fixed order
+        df_ordered = df.set_index('model').reindex(fixed_order).reset_index()
+        df_ordered = df_ordered.dropna()  # Remove models not in results
         
         # Create bar plot
-        bars = ax.bar(range(len(df_sorted)), df_sorted[metric], 
-                     color=sns.color_palette("viridis", len(df_sorted)))
+        bars = ax.bar(range(len(df_ordered)), df_ordered[metric], 
+                     color=sns.color_palette("viridis", len(df_ordered)))
         
         # Customize plot
         metric_title = metric.replace('_', ' ').title()
@@ -256,12 +284,12 @@ class ResultsVisualizer:
         ax.set_ylim(0, 1.05 if metric.endswith('_rate') else None)
         
         # Set x-axis labels
-        model_names = [name.split('/')[-1] for name in df_sorted['model']]
+        model_names = [name.split('/')[-1] for name in df_ordered['model']]
         ax.set_xticks(range(len(model_names)))
         ax.set_xticklabels(model_names, rotation=45, ha='right')
         
         # Add value labels on bars
-        for i, (bar, value) in enumerate(zip(bars, df_sorted[metric])):
+        for i, (bar, value) in enumerate(zip(bars, df_ordered[metric])):
             if metric.endswith('_rate'):
                 ax.text(bar.get_x() + bar.get_width()/2, bar.get_height() + 0.01,
                        f'{value:.2f}', ha='center', va='bottom')
