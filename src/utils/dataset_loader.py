@@ -44,7 +44,7 @@ class APPSDatasetLoader:
         self,
         n_samples: int = 100,
         split: str = "test",
-        difficulty: str = "all",
+        difficulty: str = "introductory",
         min_test_cases: int = 1,
         max_test_cases: Optional[int] = None,
         has_solutions: Optional[bool] = None,

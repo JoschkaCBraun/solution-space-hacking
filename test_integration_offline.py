@@ -28,6 +28,7 @@ def test_offline_integration():
     problems = loader.load_apps_samples(
         n_samples=3,
         split="eval",
+        difficulty="introductory",  # Explicitly set to match new default
         recover_types=True,
         verbose=False
     )

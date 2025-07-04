@@ -73,7 +73,7 @@ class ModelEvaluator:
         print("Calling models via OpenRouter...")
         model_results = await self.openrouter_client.call_models_parallel(prompts, models)
         
-        # Process results
+                # Process results
         print("Processing results...")
         evaluation_results = {}
         
@@ -111,16 +111,6 @@ class ModelEvaluator:
                         "api_success": False,
                         "api_error": result["error"]
                     })
-            
-            # Save model outputs
-            model_output_file = self.model_outputs_dir / f"{model_name.replace('/', '_')}_{split}_outputs.json"
-            with open(model_output_file, 'w') as f:
-                json.dump({
-                    "model": model_name,
-                    "split": split,
-                    "timestamp": datetime.now().isoformat(),
-                    "results": model_outputs
-                }, f, indent=2)
             
             # Evaluate code execution
             scored_results = []
@@ -160,31 +150,64 @@ class ModelEvaluator:
                         }
                     })
             
-            # Save scored results
-            scored_output_file = self.scored_outputs_dir / f"{model_name.replace('/', '_')}_{split}_scored.json"
-            with open(scored_output_file, 'w') as f:
-                json.dump({
-                    "model": model_name,
-                    "split": split,
-                    "timestamp": datetime.now().isoformat(),
-                    "results": scored_results
-                }, f, indent=2)
-            
+            # Store results for combined file
             evaluation_results[model_name] = {
-                "model_outputs_file": str(model_output_file),
-                "scored_outputs_file": str(scored_output_file),
-                "results": scored_results
+                "model_outputs": model_outputs,
+                "scored_results": scored_results
             }
         
         # Generate summary report
         summary = self._generate_summary_report(evaluation_results, models, split)
         
-        # Save summary
-        summary_file = self.scored_outputs_dir / f"summary_{split}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
-        with open(summary_file, 'w') as f:
-            json.dump(summary, f, indent=2)
+        # Create combined output files
+        timestamp = datetime.now()
+        timestamp_str = timestamp.strftime('%Y%m%d_%H%M%S')
         
-        print(f"\nEvaluation complete! Summary saved to {summary_file}")
+        # Combined model outputs file
+        combined_outputs_file = self.model_outputs_dir / f"{timestamp_str}_{n_problems}samples_{split}_outputs.json"
+        combined_outputs_data = {
+            "metadata": {
+                "split": split,
+                "timestamp": timestamp.isoformat(),
+                "n_problems": n_problems,
+                "difficulty": "introductory",
+                "models": list(models),
+                "total_api_calls": len(models) * n_problems
+            },
+            "summary": summary["models"],
+            "results": {
+                model_name: eval_results["model_outputs"] 
+                for model_name, eval_results in evaluation_results.items()
+            }
+        }
+        
+        with open(combined_outputs_file, 'w') as f:
+            json.dump(combined_outputs_data, f, indent=2)
+        
+        # Combined scored outputs file
+        combined_scored_file = self.scored_outputs_dir / f"{timestamp_str}_{n_problems}samples_{split}_scored.json"
+        combined_scored_data = {
+            "metadata": {
+                "split": split,
+                "timestamp": timestamp.isoformat(),
+                "n_problems": n_problems,
+                "difficulty": "introductory",
+                "models": list(models),
+                "total_api_calls": len(models) * n_problems
+            },
+            "summary": summary["models"],
+            "results": {
+                model_name: eval_results["scored_results"] 
+                for model_name, eval_results in evaluation_results.items()
+            }
+        }
+        
+        with open(combined_scored_file, 'w') as f:
+            json.dump(combined_scored_data, f, indent=2)
+        
+        print(f"\nEvaluation complete!")
+        print(f"Combined outputs saved to: {combined_outputs_file}")
+        print(f"Combined scored results saved to: {combined_scored_file}")
         self._print_summary(summary)
         
         return evaluation_results
@@ -205,7 +228,7 @@ class ModelEvaluator:
                 }
                 continue
             
-            results = evaluation_results[model_name]["results"]
+            results = evaluation_results[model_name]["scored_results"]
             
             # Calculate statistics
             total_problems = len(results)

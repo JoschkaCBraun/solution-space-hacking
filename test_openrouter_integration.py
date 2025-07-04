@@ -31,7 +31,7 @@ async def test_integration():
         results = await evaluator.evaluate_models(
             split="eval",
             n_problems=2,
-            models=["qwen/qwen3-8b:free"]  # Use different free model for testing
+            models=["google/gemma-3-4b-it"]  # Use non-free model for testing
         )
         
         print("✅ Integration test completed successfully!")
@@ -40,9 +40,7 @@ async def test_integration():
         # Print quick summary
         for model_name, model_results in results.items():
             print(f"\nModel: {model_name}")
-            print(f"  Model outputs: {model_results['model_outputs_file']}")
-            print(f"  Scored outputs: {model_results['scored_outputs_file']}")
-            print(f"  Results count: {len(model_results['results'])}")
+            print(f"  Results count: {len(model_results['scored_results'])}")
         
     except Exception as e:
         print(f"❌ Integration test failed: {e}")
