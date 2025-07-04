@@ -19,7 +19,7 @@ class ResultsVisualizer:
         
         # Set style
         plt.style.use('default')
-        sns.set_palette("husl")
+        sns.set_palette("viridis")
     
     def load_results(self, results_file: str) -> Dict:
         """Load results from JSON file."""
@@ -66,6 +66,50 @@ class ResultsVisualizer:
         
         return lengths
     
+    def calculate_token_usage_stats(self, results: Dict) -> Dict[str, Dict]:
+        """Calculate token usage statistics for each model."""
+        token_stats = {}
+        
+        for model_name, model_results in results["results"].items():
+            total_responses = 0
+            max_length_hits = 0
+            near_max_hits = 0
+            total_completion_tokens = 0
+            
+            for result in model_results:
+                if result["api_success"] and "usage" in result:
+                    total_responses += 1
+                    completion_tokens = result["usage"].get("completion_tokens", 0)
+                    total_completion_tokens += completion_tokens
+                    
+                    # Check if hit max length (8192 tokens)
+                    if completion_tokens >= 8192:
+                        max_length_hits += 1
+                    # Check if within 100 tokens of max
+                    elif completion_tokens >= 8092:
+                        near_max_hits += 1
+            
+            if total_responses > 0:
+                token_stats[model_name] = {
+                    "total_responses": total_responses,
+                    "max_length_hits": max_length_hits,
+                    "near_max_hits": near_max_hits,
+                    "max_length_rate": max_length_hits / total_responses,
+                    "near_max_rate": near_max_hits / total_responses,
+                    "avg_completion_tokens": total_completion_tokens / total_responses
+                }
+            else:
+                token_stats[model_name] = {
+                    "total_responses": 0,
+                    "max_length_hits": 0,
+                    "near_max_hits": 0,
+                    "max_length_rate": 0,
+                    "near_max_rate": 0,
+                    "avg_completion_tokens": 0
+                }
+        
+        return token_stats
+    
     def create_bar_plot(self, df: pd.DataFrame, metric: str, title: str, 
                        split: str, n_samples: int, fig, ax, position: int):
         """Create a bar plot for a specific metric."""
@@ -74,10 +118,10 @@ class ResultsVisualizer:
         
         # Create bar plot
         bars = ax.bar(range(len(df_sorted)), df_sorted[metric], 
-                     color=sns.color_palette("husl", len(df_sorted)))
+                     color=sns.color_palette("viridis", len(df_sorted)))
         
         # Customize plot
-        ax.set_title(f"{title}\n{split} split, {n_samples} samples", fontsize=10)
+        ax.set_title(f"{title} - {split} split, {n_samples} samples", fontsize=10)
         ax.set_ylabel(metric.replace('_', ' ').title())
         ax.set_ylim(0, 1.05 if metric.endswith('_rate') else None)
         
@@ -115,14 +159,22 @@ class ResultsVisualizer:
             print("No completed results found to plot.")
             return
         
-        # Calculate answer lengths
+        # Calculate answer lengths and token usage
         answer_lengths = self.calculate_answer_lengths(results)
-        df['avg_answer_length'] = df['model'].map(answer_lengths)
+        token_stats = self.calculate_token_usage_stats(results)
         
-        # Create figure with subplots
-        fig, axes = plt.subplots(3, 3, figsize=(18, 15))
+        df['avg_answer_length'] = df['model'].map(answer_lengths)
+        df['max_length_rate'] = df['model'].map({k: v['max_length_rate'] for k, v in token_stats.items()})
+        df['near_max_rate'] = df['model'].map({k: v['near_max_rate'] for k, v in token_stats.items()})
+        df['avg_completion_tokens'] = df['model'].map({k: v['avg_completion_tokens'] for k, v in token_stats.items()})
+        
+        # Create figure with subplots (4x3 to accommodate 11 metrics)
+        fig, axes = plt.subplots(4, 3, figsize=(18, 20))
         fig.suptitle(f'Model Evaluation Results - {split.upper()} Split, {n_samples} Samples', 
                     fontsize=16, fontweight='bold')
+        
+        # Add more space between subplots
+        plt.subplots_adjust(hspace=0.4, wspace=0.3)
         
         # Define metrics to plot
         metrics = [
@@ -133,7 +185,10 @@ class ResultsVisualizer:
             ('test_case_pass_rate', 'Test Case Pass Rate'),
             ('passed_test_cases', 'Passed Test Cases'),
             ('total_test_cases', 'Total Test Cases'),
-            ('avg_answer_length', 'Average Answer Length (chars)')
+            ('avg_answer_length', 'Average Answer Length (chars)'),
+            ('max_length_rate', 'Max Length Hit Rate'),
+            ('near_max_rate', 'Near Max Length Rate'),
+            ('avg_completion_tokens', 'Average Completion Tokens')
         ]
         
         # Create plots
@@ -143,23 +198,26 @@ class ResultsVisualizer:
             self.create_bar_plot(df, metric, title, split, n_samples, 
                                fig, axes[row, col], i)
         
-        # Remove the last empty subplot
-        axes[2, 2].remove()
+        # Hide empty subplots
+        for i in range(len(metrics), 12):  # 4x3 = 12 total subplots
+            row = i // 3
+            col = i % 3
+            axes[row, col].set_visible(False)
         
         # Adjust layout
         plt.tight_layout()
-        plt.subplots_adjust(top=0.93)
+        plt.subplots_adjust(top=0.93, hspace=0.4, wspace=0.3)
         
         # Save plot
         if output_file is None:
             timestamp = metadata.get("timestamp", "").split("T")[0].replace("-", "")
             output_file = self.figures_dir / f"evaluation_results_{timestamp}_{n_samples}samples_{split}.pdf"
         
-        plt.savefig(output_file, dpi=300, bbox_inches='tight')
+        plt.savefig(output_file, dpi=300, bbox_inches='tight', format='pdf')
         print(f"Plots saved to: {output_file}")
         
-        # Show plot
-        plt.show()
+        # Close plot to avoid displaying
+        plt.close()
         
         return fig, df
     
@@ -188,11 +246,11 @@ class ResultsVisualizer:
         
         # Create bar plot
         bars = ax.bar(range(len(df_sorted)), df_sorted[metric], 
-                     color=sns.color_palette("husl", len(df_sorted)))
+                     color=sns.color_palette("viridis", len(df_sorted)))
         
         # Customize plot
         metric_title = metric.replace('_', ' ').title()
-        ax.set_title(f"{metric_title}\n{split.upper()} Split, {n_samples} Samples", 
+        ax.set_title(f"{metric_title} - {split.upper()} Split, {n_samples} Samples", 
                     fontsize=14, fontweight='bold')
         ax.set_ylabel(metric_title)
         ax.set_ylim(0, 1.05 if metric.endswith('_rate') else None)
@@ -221,10 +279,10 @@ class ResultsVisualizer:
             timestamp = metadata.get("timestamp", "").split("T")[0].replace("-", "")
             output_file = self.figures_dir / f"{metric}_{timestamp}_{n_samples}samples_{split}.pdf"
         
-        plt.savefig(output_file, dpi=300, bbox_inches='tight')
+        plt.savefig(output_file, dpi=300, bbox_inches='tight', format='pdf')
         print(f"Plot saved to: {output_file}")
         
-        plt.show()
+        plt.close()
         
         return fig, df
 
