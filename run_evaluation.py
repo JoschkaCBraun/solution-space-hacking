@@ -1,6 +1,26 @@
 """
 Evaluation script for APPS model outputs.
-Loads previously generated outputs and evaluates them (code extraction, execution, metrics).
+
+This script loads previously generated model outputs and evaluates them through code extraction,
+execution, and comprehensive metrics calculation. It operates on the fast evaluation phase
+separately from generation for iterative development.
+
+Features:
+- Code extraction from model outputs using structured parsing
+- Code execution against APPS test cases with safety measures
+- Comprehensive metrics calculation (pass rates, extraction rates, etc.)
+- Visualization generation with fixed model ordering
+- Support for evaluation-only workflow (no re-generation needed)
+
+Usage:
+    python run_evaluation.py --input-file data/generation_outputs/latest_file.json
+    python run_evaluation.py --input-file output.json --no-figures
+    python run_evaluation.py --input-file latest  # Uses most recent file
+
+Output:
+    Saves evaluation results to data/scored_outputs/ with corresponding filenames.
+    Generates visualizations in data/figures/ if enabled.
+    Format: {timestamp}_{split}_{n_problems}problems_{n_models}models_scored.json
 """
 
 import argparse

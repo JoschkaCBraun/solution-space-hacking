@@ -34,35 +34,42 @@
   - Response processing utilities
 
 #### 5. Model Evaluation Framework
-- **Evaluation system**: `src/evaluation/evaluate_models_on_apps.py` with `APPSEvaluator` class
+- **Evaluation pipeline**: Separated into generation and evaluation phases
+  - `run_generation.py`: Generate model outputs with timeout handling
+  - `run_evaluation.py`: Evaluate saved outputs with code execution
+  - `run_full_pipeline.py`: Run both phases in sequence
+- **Configuration**: YAML-based config with CLI override support
 - **Features**:
-  - Batch evaluation across multiple models
-  - Configurable parameters (temperature, max_tokens, etc.)
-  - Intermediate result saving
-  - Result analysis and statistics
-  - Error handling and logging
+  - 3-minute timeout for model calls
+  - 4096 max tokens for generation
+  - Parallel model execution with worker pool
+  - Code extraction and execution testing
+  - Comprehensive metrics and visualization
+  - Standardized file naming convention
 
 #### 6. Model Configuration
 - **Centralized model management**: `apps_evaluation_models` list in `src/openrouter/openrouter_models.py`
-- **Selected models** (9 total):
-  - `google/gemma-3-4b-it:free` (4B, free)
+- **Selected models** (9 total, ordered by size):
   - `meta-llama/llama-3.2-1b-instruct` (1B, paid)
+  - `deepseek/deepseek-r1-distill-qwen-1.5b` (1.5B, paid)
   - `meta-llama/llama-3.2-3b-instruct` (3B, paid)
+  - `microsoft/phi-3.5-mini-128k-instruct` (3.5B, paid)
+  - `google/gemma-3-4b-it` (4B, free)
+  - `deepseek/deepseek-r1-distill-qwen-7b` (7B, paid)
+  - `qwen/qwen3-8b` (8B, free)
   - `meta-llama/llama-3.1-8b-instruct` (8B, paid)
   - `deepseek/deepseek-r1-distill-llama-8b` (8B, paid)
-  - `qwen/qwen3-8b:free` (8B, free)
-  - `deepseek/deepseek-r1-distill-qwen-7b` (7B, paid)
-  - `deepseek/deepseek-r1-distill-qwen-1.5b` (1.5B, paid)
-  - `microsoft/phi-3-mini-128k-instruct` (3.8B, paid)
 
 #### 7. Testing Framework
-- **Test structure**: `tests/` directory with initial test for APPS loader
-- **Test coverage**: Basic functionality testing for dataset loading and prompt generation
+- **Test structure**: `tests/` directory with integration tests
+- **Test coverage**: Pipeline testing, data integrity, and evaluation workflows
+- **Integration tests**: End-to-end testing of generation and evaluation phases
 
 #### 8. Documentation
 - **README.md**: Comprehensive project overview and setup instructions
 - **Project status**: This document tracking implementation progress
-- **External repo documentation**: Context for external references
+- **Configuration**: YAML config documentation and CLI usage
+- **Pipeline documentation**: Generation and evaluation workflow guides
 
 ### 🔄 In Progress / Next Steps
 
@@ -77,9 +84,9 @@
 - **Performance analysis**: Speed, cost, and quality trade-offs
 
 #### 3. Visualization and Analysis
-- **Solution space mapping**: Visualizing exploration patterns
-- **Model comparison**: Side-by-side analysis of different models
-- **Statistical analysis**: Quantitative comparison of solution spaces
+- **Results visualization**: `src/visualization/plot_results.py` with comprehensive metrics plots
+- **Model comparison**: Side-by-side analysis with fixed model ordering
+- **Statistical analysis**: Token usage, pass rates, and performance metrics
 
 ### 📋 Planned Features
 
@@ -87,6 +94,7 @@
 - **Multi-turn conversations**: Testing iterative problem-solving
 - **Solution refinement**: How models improve solutions over multiple attempts
 - **Error analysis**: Understanding failure modes and recovery
+- **Solution space diversity**: Measuring exploration patterns and variety
 
 #### 2. Training Data Analysis
 - **Dataset influence**: How training data affects solution space exploration
@@ -94,7 +102,7 @@
 - **Alignment analysis**: Understanding model alignment with human preferences
 
 #### 3. Tool Integration
-- **Code execution**: Running and testing generated solutions
+- **Code execution**: ✅ Running and testing generated solutions (implemented)
 - **Static analysis**: Code quality and security analysis
 - **Performance benchmarking**: Runtime performance of generated code
 
@@ -102,50 +110,74 @@
 
 ### Data Flow
 ```
-APPS Dataset (HuggingFace) → APPSDatasetLoader → Prompt Generation → OpenRouter API → Model Responses → Evaluation → Analysis
+APPS Dataset → APPSDatasetLoader → Prompt Generation → OpenRouter API → Model Responses → Generation Outputs → Evaluation → Scored Results → Visualization
+```
+
+### Pipeline Architecture
+```
+Generation Phase: run_generation.py
+├── Load problems from APPS dataset
+├── Generate prompts
+├── Call models via OpenRouter (with timeout)
+└── Save raw outputs to data/generation_outputs/
+
+Evaluation Phase: run_evaluation.py
+├── Load generation outputs
+├── Extract code and thinking
+├── Execute code against test cases
+├── Calculate metrics
+└── Save results to data/scored_outputs/
 ```
 
 ### Key Classes
 - **APPSDatasetLoader**: Dataset management and prompt generation
-- **OpenRouterClient**: API communication and model interaction
-- **APPSEvaluator**: Evaluation orchestration and result management
+- **AsyncOpenRouterClient**: Async API communication with timeout handling
+- **ModelEvaluator**: Evaluation orchestration with separated generation/evaluation
+- **ResultsVisualizer**: Comprehensive results visualization and plotting
 
 ### Configuration Management
-- **Model selection**: Centralized in `src/openrouter/models.py`
+- **Model selection**: Centralized in `src/openrouter/openrouter_models.py`
+- **Pipeline config**: YAML-based configuration in `config/evaluation_config.yaml`
 - **Environment variables**: API keys and configuration
-- **Evaluation parameters**: Configurable through evaluator class
+- **CLI override**: Command-line arguments override YAML defaults
 
 ## Current Limitations
 
-1. **No code execution**: Generated solutions are not automatically tested
-2. **Limited metrics**: Basic statistics only, no advanced evaluation metrics
-3. **Single-turn only**: No multi-turn conversation analysis
-4. **No visualization**: No tools for visualizing solution spaces
-5. **Basic error handling**: Limited recovery from API failures
+1. **Single-turn only**: No multi-turn conversation analysis
+2. **Limited solution space analysis**: Basic metrics, no advanced exploration pattern analysis
+3. **No static analysis**: No code quality or security analysis beyond execution
+4. **Fixed model set**: No dynamic model selection or comparison with other providers
 
 ## Next Development Priorities
 
-1. **Implement code execution framework** for testing generated solutions
-2. **Add comprehensive evaluation metrics** for solution quality
-3. **Develop solution space visualization tools**
-4. **Create multi-turn evaluation framework**
-5. **Add statistical analysis and comparison tools**
+1. **Solution space analysis** for understanding exploration patterns
+2. **Multi-turn evaluation framework** for iterative problem-solving
+3. **Advanced metrics** for solution diversity and quality
+4. **Static analysis integration** for code quality assessment
+5. **Dynamic model comparison** across different providers
 
 ## Repository Structure
 ```
 solution-space-hacking/
+├── config/                      # Configuration files
+│   └── evaluation_config.yaml   # Pipeline settings
 ├── src/
 │   ├── apps/                    # APPS dataset handling
 │   ├── evaluation/              # Model evaluation framework
 │   ├── openrouter/              # OpenRouter API integration
-│   └── utils/                   # Utility functions
+│   ├── utils/                   # Utility functions
+│   └── visualization/           # Results visualization
 ├── data/                        # Data storage (gitignored)
-├── external_repo/               # External references (gitignored)
+│   ├── generation_outputs/      # Model generation results
+│   ├── scored_outputs/          # Evaluation results
+│   └── figures/                 # Visualization plots
 ├── docs/                        # Documentation
 ├── tests/                       # Test files
 ├── notebooks/                   # Jupyter notebooks
 ├── scratch/                     # Personal work areas
-└── configs/                     # Configuration files
+├── run_generation.py            # Generation pipeline
+├── run_evaluation.py            # Evaluation pipeline
+└── run_full_pipeline.py         # Full pipeline
 ```
 
 ## Environment Setup
@@ -155,40 +187,54 @@ solution-space-hacking/
 
 ### Dependencies
 - Core data processing: pandas, numpy
-- API communication: requests, aiohttp
+- API communication: aiohttp, requests
 - Dataset handling: datasets, huggingface_hub
 - Visualization: matplotlib, seaborn
+- Configuration: pyyaml
 - Utilities: python-dotenv, tqdm, jsonlines
 
 ## Usage Examples
 
-### Basic Evaluation
-```python
-from src.evaluation.evaluate_models_on_apps import APPSEvaluator
-from src.apps.load_apps_dataset import APPSDatasetLoader
+### Basic Pipeline Usage
+```bash
+# Generate model outputs
+python run_generation.py --n-problems 50 --split eval
 
-# Load dataset
-loader = APPSDatasetLoader()
-problems = loader.load_dataset("test")
+# Evaluate existing outputs
+python run_evaluation.py --input-file data/generation_outputs/latest_file.json
 
-# Evaluate models
-evaluator = APPSEvaluator()
-results = evaluator.evaluate_model_on_problems(
-    model="google/gemma-3-4b-it:free",
-    problems=problems[:10],
-    max_tokens=2048
-)
+# Run full pipeline
+python run_full_pipeline.py --n-problems 50 --split eval
 ```
 
-### Custom Model Selection
+### Advanced Configuration
+```bash
+# Use custom config
+python run_generation.py --config custom_config.yaml --n-problems 100
+
+# Override specific settings
+python run_generation.py --split train --max-tokens 2048 --timeout 120
+
+# Skip generation, evaluate existing outputs
+python run_full_pipeline.py --skip-generation --generation-output path/to/output.json
+```
+
+### Programmatic Usage
 ```python
-from src.openrouter.openrouter_models import apps_evaluation_models
+from src.evaluation.model_evaluator import ModelEvaluator
+import asyncio
 
-# Use all models
-models = apps_evaluation_models
+# Generate outputs
+evaluator = ModelEvaluator()
+results = asyncio.run(evaluator.generate_outputs(
+    split="eval",
+    n_problems=10,
+    max_tokens=4096,
+    timeout_seconds=180
+))
 
-# Or select specific models
-selected_models = models[:3]  # First 3 models
+# Evaluate outputs
+scored_results = evaluator.evaluate_outputs(results)
 ```
 
 This project is currently in active development with a solid foundation for APPS dataset evaluation and solution space analysis. 

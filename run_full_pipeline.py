@@ -1,6 +1,30 @@
 """
 Full pipeline script for APPS evaluation.
-Runs both generation and evaluation steps in sequence.
+
+This script runs both the generation and evaluation phases in sequence for a complete
+APPS evaluation workflow. It provides convenience for end-to-end runs while maintaining
+the flexibility to run phases separately when needed.
+
+Features:
+- Sequential execution of generation and evaluation phases
+- Option to skip generation and use existing outputs
+- Comprehensive progress reporting and error handling
+- Integration with YAML configuration and CLI overrides
+- Clear separation of concerns with detailed logging
+
+Usage:
+    python run_full_pipeline.py --n-problems 50 --split eval
+    python run_full_pipeline.py --skip-generation --generation-output path/to/output.json
+    python run_full_pipeline.py --config custom_config.yaml --no-figures
+
+Workflow:
+    1. Generation Phase: Load problems → Generate prompts → Call models → Save outputs
+    2. Evaluation Phase: Load outputs → Extract code → Execute tests → Calculate metrics → Generate plots
+
+Output:
+    Generation: data/generation_outputs/{timestamp}_{split}_{n_problems}problems_{n_models}models_outputs.json
+    Evaluation: data/scored_outputs/{timestamp}_{split}_{n_problems}problems_{n_models}models_scored.json
+    Visualizations: data/figures/evaluation_results_{timestamp}_{n_problems}samples_{split}.pdf
 """
 
 import argparse

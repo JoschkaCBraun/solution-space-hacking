@@ -25,13 +25,15 @@ This project investigates how AI models explore solution spaces through various 
 ```
 solution-space-hacking/
 ├── .venv/                  # Virtual environment (created by uv)
-├── configs/                # Configuration files
+├── config/                 # Configuration files
+│   └── evaluation_config.yaml  # Evaluation pipeline settings
 ├── data/                   # Data storage
-│   ├── apps/               # APPS dataset and results
+│   ├── apps/               # APPS dataset
 │   │   ├── raw/            # Raw APPS dataset
-│   │   ├── model_outputs/  # Model inference results
-│   │   └── evaluations/    # Evaluation results
-│   └── experiments/        # Experimental datasets
+│   │   └── cleaned/        # Cleaned and processed APPS dataset
+│   ├── generation_outputs/ # Model generation outputs
+│   ├── scored_outputs/     # Evaluation results
+│   └── figures/            # Visualization plots
 ├── docs/                   # Documentation
 ├── logs/                   # Log files
 ├── models/                 # Model weights
@@ -46,8 +48,12 @@ solution-space-hacking/
 │   ├── apps/               # APPS dataset handling
 │   ├── evaluation/         # Model evaluation utilities
 │   ├── openrouter/         # OpenRouter API integration
-│   └── utils/              # Utility functions
+│   ├── utils/              # Utility functions
+│   └── visualization/      # Results visualization
 ├── tests/                  # Test files
+├── run_generation.py       # Model generation script
+├── run_evaluation.py       # Evaluation script
+├── run_full_pipeline.py    # Full pipeline script
 ├── pyproject.toml          # Project configuration and dependencies
 ├── uv.lock                 # Locked dependency versions
 └── .env                    # Environment variables (not in git)
@@ -140,11 +146,14 @@ deactivate
 
 4. **Run experiments**:
    ```bash
-   # Load APPS dataset
-   uv run python src/apps/load_apps_dataset.py
+   # Generate model outputs
+   uv run python run_generation.py --n-problems 50 --split eval
    
-   # Evaluate models on APPS
-   uv run python src/evaluation/evaluate_models_on_apps.py
+   # Evaluate existing outputs
+   uv run python run_evaluation.py --input-file data/generation_outputs/latest_file.json
+   
+   # Run full pipeline (generation + evaluation)
+   uv run python run_full_pipeline.py --n-problems 50 --split eval
    
    # Personal experiments
    uv run python scratch/joschka/experiments/your_experiment.py
@@ -152,9 +161,10 @@ deactivate
 
 ## Data Organization
 
-- **APPS Dataset**: Raw APPS dataset stored in `data/apps/raw/`
-- **Model Outputs**: Results from model inference stored in `data/apps/model_outputs/`
-- **Evaluations**: Evaluation results and analysis in `data/apps/evaluations/`
+- **APPS Dataset**: Raw APPS dataset stored in `data/apps/raw/`, cleaned version in `data/apps/cleaned/`
+- **Generation Outputs**: Model generation results stored in `data/generation_outputs/`
+- **Evaluation Results**: Scored outputs and metrics in `data/scored_outputs/`
+- **Visualizations**: Plots and figures in `data/figures/`
 - **Experiments**: Experimental datasets in `data/experiments/`
 
 ## Documentation

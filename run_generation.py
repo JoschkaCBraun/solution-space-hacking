@@ -1,6 +1,24 @@
 """
 Model generation script for APPS evaluation.
-Generates model outputs for given problems and saves them for later evaluation.
+
+This script generates model outputs for APPS coding problems and saves them for later evaluation.
+It handles the expensive generation phase separately from evaluation for better efficiency.
+
+Features:
+- Parallel model execution with configurable worker pool
+- 3-minute timeout per model call with graceful handling
+- YAML configuration with CLI override support
+- Standardized file naming convention
+- Comprehensive error handling and logging
+
+Usage:
+    python run_generation.py --n-problems 50 --split eval
+    python run_generation.py --config custom_config.yaml --max-tokens 2048
+    python run_generation.py --models "model1" "model2" --n-problems 10
+
+Output:
+    Saves generation results to data/generation_outputs/ with timestamped filenames.
+    Format: {timestamp}_{split}_{n_problems}problems_{n_models}models_outputs.json
 """
 
 import asyncio
