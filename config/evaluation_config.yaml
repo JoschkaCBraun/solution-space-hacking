@@ -1,0 +1,26 @@
+# Evaluation Configuration
+# CLI arguments override these settings
+
+dataset:
+  split: "eval"
+  n_problems: 50
+  difficulty_filter: "easy"
+
+models:
+  use_all: true  # Use all models from apps_evaluation_models
+  # models: ["model1", "model2"]  # Uncomment to specify specific models
+  max_workers: 10
+
+generation:
+  max_tokens: 4096  # Reduced from 8192 to 4k as requested
+  temperature: 0.1
+  timeout_seconds: 180  # 3 minutes timeout for model generation
+
+evaluation:
+  save_figures: true
+  output_format: "pdf"
+  figures_dir: "data/figures"
+
+output:
+  generation_dir: "data/generation_outputs"
+  scored_dir: "data/scored_outputs" 

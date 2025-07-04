@@ -29,7 +29,8 @@ class AsyncOpenRouterClient:
         }
     
     async def call_model(self, model: str, prompt: str, session: aiohttp.ClientSession, 
-                        max_retries: int = 3, retry_delay: float = 5.0) -> Dict:
+                        max_retries: int = 3, retry_delay: float = 5.0,
+                        max_tokens: int = 4096, timeout_seconds: int = 180) -> Dict:
         """Call a single model with retry logic.
         
         Args:
@@ -51,7 +52,7 @@ class AsyncOpenRouterClient:
                 }
             ],
             "temperature": 0.1,  # Low temperature for more deterministic code generation
-            "max_tokens": 8192
+            "max_tokens": max_tokens
         }
         
         for attempt in range(max_retries + 1):
@@ -61,7 +62,7 @@ class AsyncOpenRouterClient:
                     self.base_url,
                     headers=self.headers,
                     json=payload,
-                    timeout=aiohttp.ClientTimeout(total=60)
+                    timeout=aiohttp.ClientTimeout(total=timeout_seconds)
                 ) as response:
                     if response.status == 200:
                         data = await response.json()
@@ -83,7 +84,7 @@ class AsyncOpenRouterClient:
                         }
                         
             except asyncio.TimeoutError:
-                error_msg = f"Timeout after 60 seconds"
+                error_msg = f"Timeout after {timeout_seconds} seconds"
             except Exception as e:
                 error_msg = f"Request failed: {str(e)}"
             
@@ -98,7 +99,8 @@ class AsyncOpenRouterClient:
                     "attempt": attempt + 1
                 }
     
-    async def call_models_parallel(self, prompts: List[str], models: Optional[List[str]] = None) -> Dict:
+    async def call_models_parallel(self, prompts: List[str], models: Optional[List[str]] = None,
+                                 max_tokens: int = 4096, timeout_seconds: int = 180) -> Dict:
         """Call multiple models in parallel for the same prompts.
         
         Args:
@@ -117,7 +119,8 @@ class AsyncOpenRouterClient:
         async def call_with_semaphore(model: str, prompt: str, prompt_idx: int):
             async with semaphore:
                 async with aiohttp.ClientSession() as session:
-                    result = await self.call_model(model, prompt, session)
+                    result = await self.call_model(model, prompt, session, 
+                                                 max_tokens=max_tokens, timeout_seconds=timeout_seconds)
                     result["prompt_idx"] = prompt_idx
                     return result
         

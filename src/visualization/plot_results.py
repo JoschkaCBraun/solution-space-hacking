@@ -8,6 +8,7 @@ import pandas as pd
 from pathlib import Path
 from typing import Dict, List
 import seaborn as sns
+from ..openrouter.openrouter_models import apps_evaluation_models
 
 
 class ResultsVisualizer:
@@ -114,17 +115,7 @@ class ResultsVisualizer:
                        split: str, n_samples: int, fig, ax, position: int):
         """Create a bar plot for a specific metric."""
         # Use fixed order based on model size (small to large)
-        fixed_order = [
-            "meta-llama/llama-3.2-1b-instruct",
-            "deepseek/deepseek-r1-distill-qwen-1.5b",
-            "meta-llama/llama-3.2-3b-instruct",
-            "microsoft/phi-3.5-mini-128k-instruct",
-            "google/gemma-3-4b-it",
-            "deepseek/deepseek-r1-distill-qwen-7b",
-            "qwen/qwen3-8b",
-            "meta-llama/llama-3.1-8b-instruct",
-            "deepseek/deepseek-r1-distill-llama-8b"
-        ]
+        fixed_order = apps_evaluation_models
         
         # Reorder dataframe to match fixed order
         df_ordered = df.set_index('model').reindex(fixed_order).reset_index()
@@ -256,17 +247,7 @@ class ResultsVisualizer:
         fig, ax = plt.subplots(1, 1, figsize=(12, 8))
         
         # Use fixed order based on model size (small to large)
-        fixed_order = [
-            "meta-llama/llama-3.2-1b-instruct",
-            "deepseek/deepseek-r1-distill-qwen-1.5b",
-            "meta-llama/llama-3.2-3b-instruct",
-            "microsoft/phi-3.5-mini-128k-instruct",
-            "google/gemma-3-4b-it",
-            "deepseek/deepseek-r1-distill-qwen-7b",
-            "qwen/qwen3-8b",
-            "meta-llama/llama-3.1-8b-instruct",
-            "deepseek/deepseek-r1-distill-llama-8b"
-        ]
+        fixed_order = apps_evaluation_models
         
         # Reorder dataframe to match fixed order
         df_ordered = df.set_index('model').reindex(fixed_order).reset_index()

@@ -43,7 +43,7 @@
   - Error handling and logging
 
 #### 6. Model Configuration
-- **Centralized model management**: `apps_evaluation_models` list in `src/openrouter/models.py`
+- **Centralized model management**: `apps_evaluation_models` list in `src/openrouter/openrouter_models.py`
 - **Selected models** (9 total):
   - `google/gemma-3-4b-it:free` (4B, free)
   - `meta-llama/llama-3.2-1b-instruct` (1B, paid)
@@ -182,7 +182,7 @@ results = evaluator.evaluate_model_on_problems(
 
 ### Custom Model Selection
 ```python
-from src.openrouter.models import apps_evaluation_models
+from src.openrouter.openrouter_models import apps_evaluation_models
 
 # Use all models
 models = apps_evaluation_models

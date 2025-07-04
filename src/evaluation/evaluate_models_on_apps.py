@@ -14,7 +14,7 @@ sys.path.append(str(Path(__file__).parent.parent))
 
 from apps.load_apps_dataset import APPSDatasetLoader
 from openrouter.api_client import OpenRouterClient
-from openrouter.models import apps_evaluation_models
+from ..openrouter.openrouter_models import apps_evaluation_models
 
 
 class APPSEvaluator:
