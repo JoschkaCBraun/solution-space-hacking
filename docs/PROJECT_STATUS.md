@@ -115,13 +115,13 @@ APPS Dataset → APPSDatasetLoader → Prompt Generation → OpenRouter API → 
 
 ### Pipeline Architecture
 ```
-Generation Phase: run_generation.py
+Generation Phase: scripts/run_generation.py
 ├── Load problems from APPS dataset
 ├── Generate prompts
 ├── Call models via OpenRouter (with timeout)
 └── Save raw outputs to data/generation_outputs/
 
-Evaluation Phase: run_evaluation.py
+Evaluation Phase: scripts/run_evaluation.py
 ├── Load generation outputs
 ├── Extract code and thinking
 ├── Execute code against test cases

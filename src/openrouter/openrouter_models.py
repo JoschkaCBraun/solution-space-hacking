@@ -8,7 +8,7 @@ apps_evaluation_models = [
     "meta-llama/llama-3.2-1b-instruct",           # 1B
     "deepseek/deepseek-r1-distill-qwen-1.5b",     # 1.5B
     "meta-llama/llama-3.2-3b-instruct",           # 3B
-    "microsoft/phi-3.5-mini-128k-instruct",       # 3.5B (updated name)
+    "microsoft/phi-3.5-mini-128k-instruct",       # 3.8B
     "google/gemma-3-4b-it",                        # 4B
     "deepseek/deepseek-r1-distill-qwen-7b",       # 7B
     "qwen/qwen3-8b",                               # 8B

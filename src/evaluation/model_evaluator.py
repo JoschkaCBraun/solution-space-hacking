@@ -130,6 +130,78 @@ class ModelEvaluator:
         print(f"✅ Generation completed for {len(models)} models")
         return generation_data
 
+    def _extract_answers_from_outputs(self, model_outputs: List[Dict]) -> List[Dict]:
+        """Extract code from model outputs."""
+        processed_outputs = []
+        for output in model_outputs:
+            if output["api_success"]:
+                extracted = self.answer_extractor.extract_answer(output["model_output"])
+                processed_outputs.append({
+                    **output,
+                    "extracted": extracted
+                })
+            else:
+                processed_outputs.append({
+                    **output,
+                    "extracted": {
+                        "full_output": "",
+                        "thinking": "",
+                        "code": "",
+                        "thinking_found": False,
+                        "code_found": False
+                    }
+                })
+        return processed_outputs
+
+    def _score_outputs(self, processed_outputs: List[Dict], problem_lookup: Dict[str, Dict]) -> List[Dict]:
+        """Score outputs by running test cases."""
+        scored_results = []
+        for output in processed_outputs:
+            if output["api_success"] and output["extracted"]["code_found"]:
+                # Get test cases
+                problem = problem_lookup.get(output["problem_id"])
+                test_cases = self._prepare_test_cases(problem)
+                
+                # Execute code
+                execution_result = self.code_executor.run_test_cases(
+                    output["extracted"]["code"], 
+                    test_cases
+                )
+                
+                scored_results.append({
+                    **output,
+                    "execution_result": execution_result
+                })
+            else:
+                scored_results.append({
+                    **output,
+                    "execution_result": self._get_default_execution_result()
+                })
+        return scored_results
+
+    def _prepare_test_cases(self, problem: Optional[Dict]) -> List[Dict]:
+        """Prepare test cases from problem data."""
+        test_cases = []
+        if problem and 'inputs' in problem and 'outputs' in problem:
+            for input_str, output_str in zip(problem['inputs'], problem['outputs']):
+                test_cases.append({
+                    'input': str(input_str),
+                    'output': str(output_str)
+                })
+        return test_cases
+
+    def _get_default_execution_result(self) -> Dict:
+        """Get default execution result for failed cases."""
+        return {
+            "execution_success": False,
+            "execution_error": "No code found or API failed",
+            "test_results": [],
+            "passed_count": 0,
+            "failed_count": 0,
+            "total_count": 0,
+            "pass_rate": 0.0
+        }
+
     def evaluate_outputs(self, generation_results: Dict) -> Dict:
         """Evaluate previously generated outputs.
         
@@ -168,64 +240,9 @@ class ModelEvaluator:
         for model_name, model_outputs in generation_results["results"].items():
             print(f"\nProcessing results for {model_name}...")
             
-            # Extract answers
-            processed_outputs = []
-            for output in model_outputs:
-                if output["api_success"]:
-                    extracted = self.answer_extractor.extract_answer(output["model_output"])
-                    processed_outputs.append({
-                        **output,
-                        "extracted": extracted
-                    })
-                else:
-                    processed_outputs.append({
-                        **output,
-                        "extracted": {
-                            "full_output": "",
-                            "thinking": "",
-                            "code": "",
-                            "thinking_found": False,
-                            "code_found": False
-                        }
-                    })
-            
-            # Evaluate code execution
-            scored_results = []
-            for output in processed_outputs:
-                if output["api_success"] and output["extracted"]["code_found"]:
-                    # Get test cases
-                    problem = problem_lookup.get(output["problem_id"])
-                    test_cases = []
-                    if problem and 'inputs' in problem and 'outputs' in problem:
-                        for input_str, output_str in zip(problem['inputs'], problem['outputs']):
-                            test_cases.append({
-                                'input': str(input_str),
-                                'output': str(output_str)
-                            })
-                    
-                    # Execute code
-                    execution_result = self.code_executor.run_test_cases(
-                        output["extracted"]["code"], 
-                        test_cases
-                    )
-                    
-                    scored_results.append({
-                        **output,
-                        "execution_result": execution_result
-                    })
-                else:
-                    scored_results.append({
-                        **output,
-                        "execution_result": {
-                            "execution_success": False,
-                            "execution_error": "No code found or API failed",
-                            "test_results": [],
-                            "passed_count": 0,
-                            "failed_count": 0,
-                            "total_count": 0,
-                            "pass_rate": 0.0
-                        }
-                    })
+            # Extract answers and score
+            processed_outputs = self._extract_answers_from_outputs(model_outputs)
+            scored_results = self._score_outputs(processed_outputs, problem_lookup)
             
             evaluation_results[model_name] = {
                 "model_outputs": processed_outputs,
@@ -438,6 +455,38 @@ class ModelEvaluator:
         self._print_summary(summary)
         
         return evaluation_results
+    
+    def _process_model_results(self, results: List[Dict], problems: List[Dict], prompts: List[str]) -> List[Dict]:
+        """Process raw model results into structured outputs."""
+        model_outputs = []
+        for result in results:
+            if result["success"]:
+                extracted = self.answer_extractor.extract_answer(result["content"])
+                model_outputs.append({
+                    "problem_id": problems[result["prompt_idx"]]["problem_id"],
+                    "prompt": prompts[result["prompt_idx"]],
+                    "model_output": result["content"],
+                    "extracted": extracted,
+                    "usage": result.get("usage", {}),
+                    "api_success": True
+                })
+            else:
+                model_outputs.append({
+                    "problem_id": problems[result["prompt_idx"]]["problem_id"],
+                    "prompt": prompts[result["prompt_idx"]],
+                    "model_output": "",
+                    "extracted": {
+                        "full_output": "",
+                        "thinking": "",
+                        "code": "",
+                        "thinking_found": False,
+                        "code_found": False
+                    },
+                    "usage": {},
+                    "api_success": False,
+                    "api_error": result["error"]
+                })
+        return model_outputs
     
     def _generate_summary_report(self, evaluation_results: Dict, models: List[str], split: str) -> Dict:
         """Generate summary report for all models."""

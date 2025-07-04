@@ -73,7 +73,7 @@ output:
 All YAML settings can be overridden via command-line arguments:
 
 ```bash
-python run_generation.py --n-problems 100 --max-tokens 2048 --timeout 120
+python scripts/run_generation.py --n-problems 100 --max-tokens 2048 --timeout 120
 ```
 
 ## Usage Examples
@@ -82,17 +82,17 @@ python run_generation.py --n-problems 100 --max-tokens 2048 --timeout 120
 
 1. **Generate outputs**:
    ```bash
-   python run_generation.py --n-problems 50 --split eval
+   python scripts/run_generation.py --n-problems 50 --split eval
    ```
 
 2. **Evaluate outputs**:
    ```bash
-   python run_evaluation.py --input-file data/generation_outputs/20250104_143022_eval_50problems_9models_outputs.json
+   python scripts/run_evaluation.py --input-file data/generation_outputs/20250104_143022_eval_50problems_9models_outputs.json
    ```
 
 3. **Run full pipeline**:
    ```bash
-   python run_full_pipeline.py --n-problems 50 --split eval
+   python scripts/run_full_pipeline.py --n-problems 50 --split eval
    ```
 
 ### Advanced Usage

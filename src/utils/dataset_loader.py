@@ -178,48 +178,33 @@ class APPSDatasetLoader:
         
         return df
     
+    def _recover_single_type(self, data_str):
+        """Recover a single data type from stringified format."""
+        try:
+            # Handle plain strings that aren't valid Python literals
+            if isinstance(data_str, str):
+                if data_str.startswith('"') and data_str.endswith('"'):
+                    return data_str[1:-1]  # Remove quotes
+                elif data_str.startswith("'") and data_str.endswith("'"):
+                    return data_str[1:-1]  # Remove quotes
+                else:
+                    return ast.literal_eval(data_str)
+            else:
+                return data_str
+        except (ValueError, SyntaxError):
+            # If recovery fails, keep as string
+            return data_str
+
     def _recover_data_types(self, problem: Dict) -> Dict:
         """Recover original data types from stringified inputs and outputs."""
         try:
             # Recover inputs
             if 'inputs' in problem and isinstance(problem['inputs'], list):
-                recovered_inputs = []
-                for input_str in problem['inputs']:
-                    try:
-                        # Handle plain strings that aren't valid Python literals
-                        if isinstance(input_str, str):
-                            if input_str.startswith('"') and input_str.endswith('"'):
-                                recovered_inputs.append(input_str[1:-1])  # Remove quotes
-                            elif input_str.startswith("'") and input_str.endswith("'"):
-                                recovered_inputs.append(input_str[1:-1])  # Remove quotes
-                            else:
-                                recovered_inputs.append(ast.literal_eval(input_str))
-                        else:
-                            recovered_inputs.append(input_str)
-                    except (ValueError, SyntaxError):
-                        # If recovery fails, keep as string
-                        recovered_inputs.append(input_str)
-                problem['inputs'] = recovered_inputs
+                problem['inputs'] = [self._recover_single_type(item) for item in problem['inputs']]
             
             # Recover outputs
             if 'outputs' in problem and isinstance(problem['outputs'], list):
-                recovered_outputs = []
-                for output_str in problem['outputs']:
-                    try:
-                        # Handle plain strings that aren't valid Python literals
-                        if isinstance(output_str, str):
-                            if output_str.startswith('"') and output_str.endswith('"'):
-                                recovered_outputs.append(output_str[1:-1])  # Remove quotes
-                            elif output_str.startswith("'") and output_str.endswith("'"):
-                                recovered_outputs.append(output_str[1:-1])  # Remove quotes
-                            else:
-                                recovered_outputs.append(ast.literal_eval(output_str))
-                        else:
-                            recovered_outputs.append(output_str)
-                    except (ValueError, SyntaxError):
-                        # If recovery fails, keep as string
-                        recovered_outputs.append(output_str)
-                problem['outputs'] = recovered_outputs
+                problem['outputs'] = [self._recover_single_type(item) for item in problem['outputs']]
                 
         except Exception as e:
             logger.warning(f"Error recovering data types for problem {problem.get('problem_id', 'unknown')}: {e}")
