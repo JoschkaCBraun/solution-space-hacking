@@ -183,11 +183,43 @@ class APPSDatasetLoader:
         try:
             # Recover inputs
             if 'inputs' in problem and isinstance(problem['inputs'], list):
-                problem['inputs'] = [ast.literal_eval(input_str) for input_str in problem['inputs']]
+                recovered_inputs = []
+                for input_str in problem['inputs']:
+                    try:
+                        # Handle plain strings that aren't valid Python literals
+                        if isinstance(input_str, str):
+                            if input_str.startswith('"') and input_str.endswith('"'):
+                                recovered_inputs.append(input_str[1:-1])  # Remove quotes
+                            elif input_str.startswith("'") and input_str.endswith("'"):
+                                recovered_inputs.append(input_str[1:-1])  # Remove quotes
+                            else:
+                                recovered_inputs.append(ast.literal_eval(input_str))
+                        else:
+                            recovered_inputs.append(input_str)
+                    except (ValueError, SyntaxError):
+                        # If recovery fails, keep as string
+                        recovered_inputs.append(input_str)
+                problem['inputs'] = recovered_inputs
             
             # Recover outputs
             if 'outputs' in problem and isinstance(problem['outputs'], list):
-                problem['outputs'] = [ast.literal_eval(output_str) for output_str in problem['outputs']]
+                recovered_outputs = []
+                for output_str in problem['outputs']:
+                    try:
+                        # Handle plain strings that aren't valid Python literals
+                        if isinstance(output_str, str):
+                            if output_str.startswith('"') and output_str.endswith('"'):
+                                recovered_outputs.append(output_str[1:-1])  # Remove quotes
+                            elif output_str.startswith("'") and output_str.endswith("'"):
+                                recovered_outputs.append(output_str[1:-1])  # Remove quotes
+                            else:
+                                recovered_outputs.append(ast.literal_eval(output_str))
+                        else:
+                            recovered_outputs.append(output_str)
+                    except (ValueError, SyntaxError):
+                        # If recovery fails, keep as string
+                        recovered_outputs.append(output_str)
+                problem['outputs'] = recovered_outputs
                 
         except Exception as e:
             logger.warning(f"Error recovering data types for problem {problem.get('problem_id', 'unknown')}: {e}")
