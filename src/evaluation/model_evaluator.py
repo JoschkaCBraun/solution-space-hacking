@@ -86,7 +86,6 @@ class ModelEvaluator:
                 if result["success"]:
                     extracted = self.answer_extractor.extract_answer(result["content"])
                     model_outputs.append({
-                        "problem_idx": result["prompt_idx"],
                         "problem_id": problems[result["prompt_idx"]]["problem_id"],
                         "prompt": prompts[result["prompt_idx"]],
                         "model_output": result["content"],
@@ -96,7 +95,6 @@ class ModelEvaluator:
                     })
                 else:
                     model_outputs.append({
-                        "problem_idx": result["prompt_idx"],
                         "problem_id": problems[result["prompt_idx"]]["problem_id"],
                         "prompt": prompts[result["prompt_idx"]],
                         "model_output": "",
@@ -116,10 +114,15 @@ class ModelEvaluator:
             scored_results = []
             for output in model_outputs:
                 if output["api_success"] and output["extracted"]["code_found"]:
-                    # Get test cases
-                    problem = problems[output["problem_idx"]]
+                    # Get test cases by finding the problem with matching problem_id
+                    problem = None
+                    for p in problems:
+                        if p["problem_id"] == output["problem_id"]:
+                            problem = p
+                            break
+                    
                     test_cases = []
-                    if 'inputs' in problem and 'outputs' in problem:
+                    if problem and 'inputs' in problem and 'outputs' in problem:
                         for input_str, output_str in zip(problem['inputs'], problem['outputs']):
                             test_cases.append({
                                 'input': str(input_str),

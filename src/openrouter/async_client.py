@@ -51,7 +51,7 @@ class AsyncOpenRouterClient:
                 }
             ],
             "temperature": 0.1,  # Low temperature for more deterministic code generation
-            "max_tokens": 2048
+            "max_tokens": 8192
         }
         
         for attempt in range(max_retries + 1):
