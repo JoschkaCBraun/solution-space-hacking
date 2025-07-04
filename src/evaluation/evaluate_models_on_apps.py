@@ -201,7 +201,7 @@ def main():
             results = evaluator.evaluate_model_on_problems(
                 model=model,
                 problems=problems,
-                max_problems=10,  # Start with a small number for testing
+                max_problems=10,  # Evaluate exactly 10 problems
                 n_completions_per_problem=1,
                 max_tokens=2048,
                 temperature=0.7
