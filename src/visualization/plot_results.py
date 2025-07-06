@@ -84,11 +84,11 @@ class ResultsVisualizer:
                     completion_tokens = result["usage"].get("completion_tokens", 0)
                     total_completion_tokens += completion_tokens
                     
-                    # Check if hit max length (8192 tokens)
-                    if completion_tokens >= 8192:
+                    # Check if hit max length (6000 tokens)
+                    if completion_tokens >= 6000:
                         max_length_hits += 1
                     # Check if within 100 tokens of max
-                    elif completion_tokens >= 8092:
+                    elif completion_tokens >= 5900:
                         near_max_hits += 1
             
             if total_responses > 0:
@@ -138,15 +138,34 @@ class ResultsVisualizer:
         
         # Add value labels on bars
         for i, (bar, value) in enumerate(zip(bars, df_ordered[metric])):
+            # Position text based on bar height
+            if bar.get_height() == 0:
+                # For zero-height bars, place text just above x-axis
+                y_pos = 0.01 if metric.endswith('_rate') else 0.5
+            else:
+                # For non-zero bars, place text slightly above
+                y_pos = bar.get_height() + (0.01 if metric.endswith('_rate') else 0.5)
+            
             if metric.endswith('_rate'):
-                ax.text(bar.get_x() + bar.get_width()/2, bar.get_height() + 0.01,
+                ax.text(bar.get_x() + bar.get_width()/2, y_pos,
                        f'{value:.2f}', ha='center', va='bottom', fontsize=8)
             else:
-                ax.text(bar.get_x() + bar.get_width()/2, bar.get_height() + 0.5,
+                ax.text(bar.get_x() + bar.get_width()/2, y_pos,
                        f'{int(value)}', ha='center', va='bottom', fontsize=8)
         
         # Add grid
         ax.grid(True, alpha=0.3, axis='y')
+        
+        # Set y-axis limits to prevent excessive white space
+        if metric.endswith('_rate'):
+            ax.set_ylim(0, 1.1)  # Rates go from 0 to 1
+        else:
+            # For count metrics, set limit based on max value
+            max_val = df_ordered[metric].max()
+            if max_val == 0:
+                ax.set_ylim(0, 10)  # Default range for all-zero data
+            else:
+                ax.set_ylim(0, max_val * 1.15)  # 15% padding above max
     
     def _get_metrics_to_plot(self):
         """Define metrics to plot with their display titles."""
@@ -158,10 +177,10 @@ class ResultsVisualizer:
             ('test_case_pass_rate', 'Test Case Pass Rate'),
             ('passed_test_cases', 'Passed Test Cases'),
             ('total_test_cases', 'Total Test Cases'),
-            ('avg_answer_length', 'Average Answer Length (chars)'),
-            ('max_length_rate', 'Max Length Hit Rate'),
-            ('near_max_rate', 'Near Max Length Rate'),
-            ('avg_completion_tokens', 'Average Completion Tokens')
+            ('avg_answer_length', 'Average Answer Length (chars, 6k tokens allowed)'),
+            ('max_length_rate', 'Max Length Hit Rate (6k tokens)'),
+            ('near_max_rate', 'Near Max Length Rate (>5900 tokens)'),
+            ('avg_completion_tokens', 'Average Completion Tokens (6k allowed)')
         ]
     
     def _add_computed_metrics(self, df: pd.DataFrame, results: Dict) -> pd.DataFrame:
@@ -184,23 +203,41 @@ class ResultsVisualizer:
         n_cols = 3
         n_rows = (n_metrics + n_cols - 1) // n_cols  # Ceiling division
         
-        fig, axes = plt.subplots(n_rows, n_cols, figsize=(18, 5 * n_rows))
+        # Adjust figure size based on number of rows
+        fig_width = 20
+        fig_height = 4.5 * n_rows  # No extra space for title
+        
+        fig, axes = plt.subplots(n_rows, n_cols, figsize=(fig_width, fig_height))
         fig.suptitle(f'Model Evaluation Results - {split.upper()} Split, {n_samples} Samples', 
-                    fontsize=16, fontweight='bold')
+                    fontsize=16, fontweight='bold', y=0.99)
         
         # Ensure axes is 2D array even for single row
         if n_rows == 1:
             axes = axes.reshape(1, -1)
+        elif n_metrics == 1:
+            axes = np.array([[axes]])
         
         return fig, axes
     
     def _generate_output_filename(self, metadata: Dict, output_file: Optional[str]) -> Path:
         """Generate output filename if not provided."""
         if output_file is None:
-            timestamp = metadata.get("timestamp", "").split("T")[0].replace("-", "")
+            # Extract timestamp in format YYYYMMDD_HHMMSS
+            timestamp_str = metadata.get("timestamp", "")
+            if timestamp_str:
+                # Convert from ISO format to our format
+                from datetime import datetime
+                dt = datetime.fromisoformat(timestamp_str)
+                timestamp = dt.strftime('%Y%m%d_%H%M%S')
+            else:
+                timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+            
             split = metadata["split"]
-            n_samples = metadata["n_problems"]
-            return self.figures_dir / f"evaluation_results_{timestamp}_{n_samples}samples_{split}.pdf"
+            n_problems = metadata["n_problems"]
+            n_models = len(metadata.get("models", []))
+            
+            # Match the format: {timestamp}_{split}_{n_problems}problems_{n_models}models_visualization.pdf
+            return self.figures_dir / f"{timestamp}_{split}_{n_problems}problems_{n_models}models_visualization.pdf"
         return Path(output_file)
     
     def plot_all_metrics(self, results_file: str, output_file: str = None):
@@ -225,8 +262,11 @@ class ResultsVisualizer:
         # Create figure layout
         fig, axes = self._create_figure_layout(metrics, metadata["split"], metadata["n_problems"])
         
+        # Set figure background
+        fig.patch.set_facecolor('white')
+        
         # Add more space between subplots
-        plt.subplots_adjust(hspace=0.4, wspace=0.3)
+        plt.subplots_adjust(hspace=0.5, wspace=0.35)
         
         # Create plots
         for i, (metric, title) in enumerate(metrics):
@@ -242,13 +282,14 @@ class ResultsVisualizer:
             col = i % 3
             axes.flat[i].set_visible(False)
         
-        # Adjust layout
-        plt.tight_layout()
-        plt.subplots_adjust(top=0.93, hspace=0.4, wspace=0.3)
+        # Adjust layout - minimize top margin
+        plt.subplots_adjust(top=0.96, bottom=0.02, left=0.05, right=0.95, hspace=0.5, wspace=0.35)
         
         # Save plot
         output_path = self._generate_output_filename(metadata, output_file)
-        plt.savefig(output_path, dpi=300, bbox_inches='tight', format='pdf')
+        # Save with transparent background and no extra whitespace
+        plt.savefig(output_path, dpi=300, bbox_inches='tight', 
+                    format='pdf', transparent=True, pad_inches=0.1)
         print(f"Plots saved to: {output_path}")
         
         # Close plot to avoid displaying

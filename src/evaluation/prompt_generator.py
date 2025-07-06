@@ -4,8 +4,14 @@ Prompt Generator for Model Evaluation
 Generates standardized prompts for programming problems with tag-based output format.
 """
 
-import re
-from typing import Dict, List, Optional
+from typing import Dict, List
+import sys
+from pathlib import Path
+
+# Add parent directory to path for imports
+sys.path.append(str(Path(__file__).parent.parent.parent))
+
+from src.utils.dataset_loader import APPSDatasetLoader
 
 
 class PromptGenerator:
@@ -28,40 +34,79 @@ class PromptGenerator:
         
         prompt = f"""You are a programming assistant. Solve the following problem step by step.
 
-PROBLEM:
-{question}
+IMPORTANT: You MUST use the EXACT tag format shown in the examples below. Use <thinking> and </thinking> for reasoning, and <code> and </code> for the solution.
 
-EXAMPLE OUTPUT FORMAT:
+EXAMPLE 1:
+Problem: Count the number of even integers in a list.
+Input: First line contains n (the number of integers), second line contains n space-separated integers.
+Output: The count of even integers.
+
 <thinking>
-I need to sum all even numbers in a list and return their sum.
-Even numbers are those divisible by 2 (i.e., num % 2 == 0).
-I'll iterate through the list, check if each number is even, and add it to the sum.
+I need to count even numbers in a list. 
+Input format: first line has n, second line has n integers.
+Even numbers are divisible by 2 (num % 2 == 0).
+I'll create a function for the logic and handle I/O in main().
 </thinking>
 
 <code>
-def sum_even_numbers(numbers):
-    total = 0
-    for num in numbers:
-        if num % 2 == 0:
-            total += num
-    return total
+def count_even_numbers(numbers):
+    return sum(1 for num in numbers if num % 2 == 0)
 
-# Read input
-numbers = list(map(int, input().split()))
+def main():
+    n = int(input())
+    numbers = list(map(int, input().split()))
+    result = count_even_numbers(numbers)
+    print(result)
 
-# Calculate and print the sum of even numbers
-result = sum_even_numbers(numbers)
-print(result)
+if __name__ == "__main__":
+    main()
 </code>
 
-INSTRUCTIONS:
-- Your response must contain EXACTLY two tagged sections: <thinking> and <code>
-- The <thinking> tag should contain your step-by-step reasoning
-- The <code> tag should contain only the Python solution
-- Both tags must have opening and closing tags
-- Do not include any text outside these tags
-- Ensure your code handles edge cases (empty inputs, etc.)
-- For problems with large inputs, consider time complexity
+EXAMPLE 2:
+Problem: Given multiple test cases, for each test case reverse the given list.
+Input: First line contains T (number of test cases). For each test case: first line has n, second line has n elements.
+Output: For each test case, print the reversed list.
+
+<thinking>
+Multiple test cases problem. First read T, then handle T test cases.
+Each test case has n on first line, then n elements.
+I'll use a function to reverse the list and handle I/O in main().
+</thinking>
+
+<code>
+def reverse_list(elements):
+    return elements[::-1]
+
+def main():
+    t = int(input())
+    for _ in range(t):
+        n = int(input())
+        elements = input().split()
+        reversed_elements = reverse_list(elements)
+        print(' '.join(reversed_elements))
+
+if __name__ == "__main__":
+    main()
+</code>
+
+ACTUAL PROBLEM TO SOLVE:
+{question}
+
+CRITICAL INSTRUCTIONS:
+- You MUST use the EXACT tag format: <thinking>...</thinking> and <code>...</code>
+- Your response must contain EXACTLY these two tagged sections - no more, no less
+- The <thinking> tag must contain your reasoning about the problem and I/O format
+- The <code> tag must follow this EXACT structure:
+  1. Define one or more functions for the solution logic (e.g., def solve_problem(...))
+  2. Define a main() function that handles ALL input/output
+  3. Include: if __name__ == "__main__": main()
+- The main() function MUST:
+  - Read all inputs using input()
+  - Call your solution function(s)
+  - Print all outputs using print()
+- Do not include test cases, example usage, or explanations in the code
+- Do not include ANY text outside of these two tags
+- Both opening and closing tags are REQUIRED
 
 Now solve the problem above:"""
         
@@ -95,101 +140,38 @@ Now solve the problem above:"""
         print("=" * 80)
 
 
-def test_prompt_generation():
-    """Test the prompt generator with sample problems."""
-    generator = PromptGenerator()
-    
-    # Test problem 1: Distance calculation
-    problem1 = {
-        'question': '''Calculate the Euclidean distance between two points in a 2D plane.
-
------Input-----
-The first line contains two space-separated integers x1 and y1 (-1000 ≤ x1, y1 ≤ 1000).
-The second line contains two space-separated integers x2 and y2 (-1000 ≤ x2, y2 ≤ 1000).
-
------Output-----
-Print a single floating-point number — the distance between the two points. The answer will be considered correct if its absolute or relative error does not exceed 10^-2.
-
------Example-----
-Input
-0 0
-3 4
-
-Output
-5.00'''
-    }
-    
-    # Test problem 2: Paper square problem
-    problem2 = {
-        'question': '''Vasya claims that he had a paper square. He cut it into two rectangular parts using one vertical or horizontal cut. Then Vasya informed you the dimensions of these two rectangular parts. You need to check whether Vasya originally had a square. In other words, check if it is possible to make a square using two given rectangles.
-
------Input-----
-The first line contains an integer t (1 ≤ t ≤ 10^4) — the number of test cases in the input. Then t test cases follow.
-
-Each test case is given in two lines.
-
-The first line contains two integers a1 and b1 (1 ≤ a1, b1 ≤ 100) — the dimensions of the first one obtained after cutting rectangle. The sizes are given in random order (that is, it is not known which of the numbers is the width, and which of the numbers is the length).
-
-The second line contains two integers a2 and b2 (1 ≤ a2, b2 ≤ 100) — the dimensions of the second obtained after cutting rectangle. The sizes are given in random order (that is, it is not known which of the numbers is the width, and which of the numbers is the length).
-
------Output-----
-Print t answers, each of which is a string "YES" (in the case of a positive answer) or "NO" (in the case of a negative answer). The letters in words can be printed in any case (upper or lower).
-
------Example-----
-Input
-3
-2 3
-3 1
-3 2
-1 3
-3 3
-1 3
-
-Output
-Yes
-Yes
-No'''
-    }
-    
-    # Test problem 3: Run-length encoding
-    problem3 = {
-        'question': '''Implement run-length encoding and decoding. When encoding, consecutive repeated characters are replaced by the character followed by its count. When decoding, expand each character by its count.
-
------Input-----
-Input consists of a single line of text. The line starts with a single letter: E for encode or D for decode. This letter is followed by a single space and then a message. The message consists of 1 to 100 characters.
-
-Each string to encode contains only upper- and lowercase English letters, underscores, periods, and exclamation points. No consecutive sequence of characters exceeds 9 repetitions.
-
-Each string to decode has even length. Its characters alternate between the same characters as strings to encode and a single digit between 1 and 9.
-
------Output-----
-On an input of E output the run-length encoding of the provided message. On an input of D output the original string corresponding to the given run-length encoding.
-
------Example-----
-Input
-E HHHeellloWooorrrrlld!!
-
-Output
-H3e2l3o1W1o3r4l2d1!2'''
-    }
-    
-    print("Testing Prompt Generator")
+def test_prompt_generation_with_apps():
+    """Test the prompt generator with a random sample from the APPS dataset."""
+    print("Testing Prompt Generator with APPS Dataset")
     print("=" * 80)
     
-    print("\n1. Distance calculation problem:")
-    generator.preview_prompt(problem1)
+    # Initialize components
+    generator = PromptGenerator()
+    loader = APPSDatasetLoader()
     
-    print("\n2. Paper square problem:")
-    generator.preview_prompt(problem2)
-    
-    print("\n3. Run-length encoding problem:")
-    generator.preview_prompt(problem3)
-    
-    # Test batch generation
-    problems = [problem1, problem2, problem3]
-    prompts = generator.generate_batch_prompts(problems)
-    print(f"\nBatch generation: {len(prompts)} prompts created")
+    # Load a random introductory problem from the eval split
+    try:
+        problems = loader.load_apps_samples(
+            n_samples=1,
+            split="eval",
+            difficulty="introductory",
+            random_seed=None  # Random selection
+        )
+        
+        if problems:
+            problem = problems[0]
+            print(f"\nLoaded Problem ID: {problem['problem_id']}")
+            print(f"Difficulty: {problem['difficulty']}")
+            print(f"Number of test cases: {len(problem.get('inputs', []))}")
+            print("\nGenerating prompt...")
+            
+            # Generate and preview the prompt
+            generator.preview_prompt(problem)
+            
+    except Exception as e:
+        print(f"Error loading APPS dataset: {e}")
+        print("Make sure the APPS dataset is available in data/apps/cleaned/")
 
 
 if __name__ == "__main__":
-    test_prompt_generation()
+    test_prompt_generation_with_apps()

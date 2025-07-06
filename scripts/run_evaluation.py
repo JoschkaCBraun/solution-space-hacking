@@ -29,6 +29,10 @@ import json
 from datetime import datetime
 from pathlib import Path
 from typing import Dict, Optional
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv(override=True)
 
 from src.evaluation.model_evaluator import ModelEvaluator
 from src.visualization.plot_results import ResultsVisualizer

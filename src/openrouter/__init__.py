@@ -2,18 +2,10 @@
 
 from .api_client import OpenRouterClient
 from .async_client import AsyncOpenRouterClient
-from .openrouter_models import (
-    OPENROUTER_MODELS,
-    apps_evaluation_models,
-    get_model_info,
-    get_available_models
-)
+from .openrouter_models import apps_evaluation_models
 
 __all__ = [
     "OpenRouterClient",
     "AsyncOpenRouterClient",
-    "OPENROUTER_MODELS",
-    "apps_evaluation_models",
-    "get_model_info",
-    "get_available_models"
+    "apps_evaluation_models"
 ]

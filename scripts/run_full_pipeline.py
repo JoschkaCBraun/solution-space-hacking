@@ -32,6 +32,10 @@ import yaml
 import subprocess
 import sys
 from pathlib import Path
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv(override=True)
 
 from run_generation import run_generation
 from run_evaluation import run_evaluation
@@ -83,6 +87,7 @@ def main():
         max_tokens = args.max_tokens or config["generation"]["max_tokens"]
         timeout_seconds = args.timeout or config["generation"]["timeout_seconds"]
         output_dir = config["output"]["generation_dir"]
+        max_workers = config["models"].get("max_workers", 14)
         
         # Determine models to use
         if args.models:
@@ -99,6 +104,7 @@ def main():
         print(f"  Models: {len(models)}")
         print(f"  Max tokens: {max_tokens}")
         print(f"  Timeout: {timeout_seconds}s")
+        print(f"  Max workers: {max_workers}")
         print("=" * 60)
         
         # Run generation
@@ -109,7 +115,8 @@ def main():
             models=models,
             max_tokens=max_tokens,
             timeout_seconds=timeout_seconds,
-            output_dir=output_dir
+            output_dir=output_dir,
+            max_workers=max_workers
         ))
         
         print(f"✅ Generation completed: {generation_output}")

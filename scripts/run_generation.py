@@ -28,6 +28,10 @@ import json
 from datetime import datetime
 from pathlib import Path
 from typing import List, Optional
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv(override=True)
 
 from src.evaluation.model_evaluator import ModelEvaluator
 from src.openrouter.openrouter_models import apps_evaluation_models
@@ -66,7 +70,8 @@ async def run_generation(
     models: List[str],
     max_tokens: int = 4096,
     timeout_seconds: int = 180,
-    output_dir: str = "data/generation_outputs"
+    output_dir: str = "data/generation_outputs",
+    max_workers: int = 14
 ) -> str:
     """Run model generation and save outputs."""
     print(f"🚀 Starting Generation")
@@ -75,6 +80,7 @@ async def run_generation(
     print(f"Models: {len(models)}")
     print(f"Max tokens: {max_tokens}")
     print(f"Timeout: {timeout_seconds}s")
+    print(f"Max workers: {max_workers}")
     print("=" * 60)
     
     # Create output directory
@@ -82,7 +88,7 @@ async def run_generation(
     output_path.mkdir(parents=True, exist_ok=True)
     
     # Create evaluator with timeout
-    evaluator = ModelEvaluator(max_workers=10)
+    evaluator = ModelEvaluator(max_workers=max_workers)
     
     # Generate outputs (without evaluation)
     results = await evaluator.generate_outputs(
@@ -119,6 +125,7 @@ def main():
     max_tokens = args.max_tokens or config["generation"]["max_tokens"]
     timeout_seconds = args.timeout or config["generation"]["timeout_seconds"]
     output_dir = args.output_dir or config["output"]["generation_dir"]
+    max_workers = config["models"].get("max_workers", 14)
     
     # Determine models to use
     if args.models:
@@ -134,6 +141,7 @@ def main():
     print(f"  Models: {len(models)}")
     print(f"  Max tokens: {max_tokens}")
     print(f"  Timeout: {timeout_seconds}s")
+    print(f"  Max workers: {max_workers}")
     print(f"  Output dir: {output_dir}")
     print("=" * 60)
     
@@ -144,7 +152,8 @@ def main():
         models=models,
         max_tokens=max_tokens,
         timeout_seconds=timeout_seconds,
-        output_dir=output_dir
+        output_dir=output_dir,
+        max_workers=max_workers
     ))
     
     print(f"\n🎉 Generation pipeline completed!")
