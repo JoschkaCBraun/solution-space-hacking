@@ -114,30 +114,25 @@ def run_evaluation(
     print(f"  Split: {generation_results.get('metadata', {}).get('split', 'unknown')}")
     
     # Create evaluator
-    evaluator = ModelEvaluator(max_workers=10)
+    config = load_config()
+    evaluator = ModelEvaluator(max_workers=config["models"]["max_workers"])
+    
+    # Update code executor with config values
+    evaluator.code_executor = __import__('src.evaluation.code_executor', fromlist=['CodeExecutor']).CodeExecutor(
+        timeout=config["code_executor"]["timeout"],
+        max_memory_mb=config["code_executor"]["max_memory_mb"]
+    )
     
     # Evaluate the outputs
-    scored_results = evaluator.evaluate_outputs(generation_results)
+    evaluation_results = evaluator.evaluate_outputs(generation_results)
     
-    # Create output directory
-    output_path = Path(output_dir)
-    output_path.mkdir(parents=True, exist_ok=True)
-    
-    # Generate filename and save
-    input_filename = input_path.name
-    scored_filename = generate_scored_filename(input_filename)
-    output_file = output_path / scored_filename
-    
-    with open(output_file, 'w') as f:
-        json.dump(scored_results, f, indent=2)
-    
-    print(f"✅ Evaluation completed!")
-    print(f"Results saved to: {output_file}")
+    # Results are now saved automatically by ModelEvaluator
+    output_file = evaluation_results.get("filepath", "")
     
     # Generate visualizations if requested
     if save_figures:
         print(f"📊 Generating visualizations...")
-        visualizer = ResultsVisualizer()
+        visualizer = ResultsVisualizer(figures_dir=config["evaluation"]["figures_dir"])
         visualizer.plot_all_metrics(str(output_file))
         print(f"Figures saved to: {visualizer.figures_dir}")
     

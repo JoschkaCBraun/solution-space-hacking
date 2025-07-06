@@ -20,7 +20,7 @@ logger = logging.getLogger(__name__)
 class APPSDatasetLoader:
     """Load and filter the cleaned APPS dataset."""
     
-    def __init__(self, data_dir: str = "data/apps/cleaned"):
+    def __init__(self, data_dir: str):
         self.data_dir = Path(data_dir)
         self.splits = ['train', 'eval', 'test']
         self.difficulties = ['introductory', 'interview', 'competition']
@@ -42,16 +42,16 @@ class APPSDatasetLoader:
     
     def load_apps_samples(
         self,
-        n_samples: int = 100,
-        split: str = "test",
-        difficulty: str = "introductory",
-        min_test_cases: int = 1,
-        max_test_cases: Optional[int] = None,
-        has_solutions: Optional[bool] = None,
-        has_starter_code: Optional[bool] = None,
-        random_seed: Optional[int] = None,
-        recover_types: bool = True,
-        verbose: bool = True
+        n_samples: int,
+        split: str,
+        difficulty: str,
+        min_test_cases: int,
+        max_test_cases: Optional[int],
+        has_solutions: Optional[bool],
+        has_starter_code: Optional[bool],
+        random_seed: Optional[int],
+        recover_types: bool,
+        verbose: bool
     ) -> List[Dict]:
         """
         Load and filter APPS dataset samples.
@@ -283,7 +283,7 @@ class APPSDatasetLoader:
 
 def main():
     """Main function to test the dataset loader."""
-    loader = APPSDatasetLoader()
+    loader = APPSDatasetLoader(data_dir="data/apps/cleaned")
     
     # Print dataset information
     loader.print_dataset_info()

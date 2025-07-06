@@ -20,7 +20,7 @@ from ..openrouter.openrouter_models import apps_evaluation_models
 class APPSEvaluator:
     """Evaluate models on APPS dataset."""
     
-    def __init__(self, output_dir: str = "data/apps/model_outputs"):
+    def __init__(self, output_dir: str = "data/generation_outputs"):
         self.output_dir = Path(output_dir)
         self.output_dir.mkdir(parents=True, exist_ok=True)
         

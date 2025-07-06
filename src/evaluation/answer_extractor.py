@@ -38,19 +38,66 @@ class AnswerExtractor:
             "code_found": False
         }
         
-        # Extract thinking content
+        # Try optimal case first - properly formatted tags
         thinking_match = self.thinking_pattern.search(model_output)
         if thinking_match:
             result["thinking"] = thinking_match.group(1).strip()
             result["thinking_found"] = True
+        else:
+            # Fallback: look for exactly 2 occurrences of "thinking" (case insensitive)
+            thinking_positions = []
+            for match in re.finditer(r'</?thinking>', model_output, re.IGNORECASE):
+                thinking_positions.append((match.start(), match.end()))
+            
+            if len(thinking_positions) >= 2:
+                # Use outermost occurrences (first and last)
+                start_pos = thinking_positions[0][1]  # After first tag
+                end_pos = thinking_positions[-1][0]   # Before last tag
+                result["thinking"] = model_output[start_pos:end_pos].strip()
+                result["thinking_found"] = True
         
         # Extract code content
         code_match = self.code_pattern.search(model_output)
         if code_match:
-            result["code"] = code_match.group(1).strip()
+            code_content = code_match.group(1).strip()
+            result["code"] = self._clean_code(code_content)
             result["code_found"] = True
+        else:
+            # Fallback: look for exactly 2 occurrences of "code" (case insensitive)
+            code_positions = []
+            for match in re.finditer(r'</?code>', model_output, re.IGNORECASE):
+                code_positions.append((match.start(), match.end()))
+            
+            if len(code_positions) >= 2:
+                # Use outermost occurrences (first and last)
+                start_pos = code_positions[0][1]  # After first tag
+                end_pos = code_positions[-1][0]   # Before last tag
+                code_content = model_output[start_pos:end_pos].strip()
+                result["code"] = self._clean_code(code_content)
+                result["code_found"] = True
         
         return result
+    
+    def _clean_code(self, code: str) -> str:
+        """Clean extracted code to ensure it's valid Python.
+        
+        Args:
+            code: Raw code string
+            
+        Returns:
+            Cleaned code string starting from first def
+        """
+        # Remove any markdown code fence markers
+        code = re.sub(r'^```\w*\n?', '', code, flags=re.MULTILINE)
+        code = re.sub(r'\n?```$', '', code, flags=re.MULTILINE)
+        
+        # Find the first def statement
+        def_match = re.search(r'^def\s+', code, re.MULTILINE)
+        if def_match:
+            # Extract from the first def onwards
+            code = code[def_match.start():]
+        
+        return code.strip()
     
     def extract_batch_answers(self, model_outputs: list) -> list:
         """Extract answers from a batch of model outputs.

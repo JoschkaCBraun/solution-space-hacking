@@ -35,7 +35,7 @@ async def test_integration():
         )
         
         print("✅ Integration test completed successfully!")
-        print(f"Results saved to data/model_outputs/ and data/scored_outputs/")
+        print(f"Results saved to data/generation_outputs/ and data/scored_outputs/")
         
         # Print quick summary
         for model_name, model_results in results.items():

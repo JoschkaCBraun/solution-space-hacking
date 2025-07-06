@@ -11,12 +11,13 @@ import signal
 from typing import Dict, List, Any, Optional, Tuple
 from contextlib import redirect_stdout, redirect_stderr
 from io import StringIO
+from .test_case_utils import convert_input_format, compare_outputs
 
 
 class CodeExecutor:
     """Safely executes Python code with restrictions and timeout."""
     
-    def __init__(self, timeout: int = 5, max_memory_mb: int = 100):
+    def __init__(self, timeout: int, max_memory_mb: int):
         self.timeout = timeout
         self.max_memory_mb = max_memory_mb
         self.dangerous_modules = {
@@ -112,13 +113,21 @@ class CodeExecutor:
             stdout_capture = StringIO()
             stderr_capture = StringIO()
             
-            # Create restricted globals
+            # Create restricted globals with safe builtins
+            import builtins
+            safe_builtins = {}
+            
+            # Allow most builtins except dangerous ones
+            for name in dir(builtins):
+                if name not in ['eval', 'exec', 'compile', 'open', '__import__']:
+                    try:
+                        safe_builtins[name] = getattr(builtins, name)
+                    except AttributeError:
+                        pass
+            
             restricted_globals = {
-                '__builtins__': {
-                    name: getattr(__builtins__, name)
-                    for name in dir(__builtins__)
-                    if name not in ['eval', 'exec', 'compile', 'open', 'input']
-                }
+                '__builtins__': safe_builtins,
+                '__name__': '__main__'  # Add __name__ to support if __name__ == "__main__"
             }
             
             with redirect_stdout(stdout_capture), redirect_stderr(stderr_capture):
@@ -147,19 +156,30 @@ class CodeExecutor:
         Returns:
             Dictionary with test results
         """
-        # First, validate and execute the code
-        execution_result = self.execute_code(code)
+        # First, validate syntax and check for dangerous imports
+        syntax_valid, syntax_error = self.validate_syntax(code)
+        if not syntax_valid:
+            return {
+                "execution_success": False,
+                "execution_error": syntax_error,
+                "test_results": [],
+                "passed_count": 0,
+                "failed_count": 0,
+                "total_count": len(test_cases),
+                "pass_rate": 0.0
+            }
         
-        if not execution_result["success"]:
-                    return {
-            "execution_success": False,
-            "execution_error": execution_result["error"],
-            "test_results": [],
-            "passed_count": 0,
-            "failed_count": 0,
-            "total_count": len(test_cases),
-            "pass_rate": 0.0
-        }
+        is_safe, dangerous_imports = self.check_dangerous_imports(code)
+        if not is_safe:
+            return {
+                "execution_success": False,
+                "execution_error": f"Dangerous imports detected: {dangerous_imports}",
+                "test_results": [],
+                "passed_count": 0,
+                "failed_count": 0,
+                "total_count": len(test_cases),
+                "pass_rate": 0.0
+            }
         
         # Run test cases
         test_results = []
@@ -169,35 +189,55 @@ class CodeExecutor:
             test_input = test_case.get('input', '')
             expected_output = test_case.get('output', '')
             
+            # Convert input format if needed (e.g., '[1, 2]' -> '1\n2')
+            converted_input = convert_input_format(test_input)
+            
             # Create a new execution environment for each test
             try:
                 # Capture stdout for this specific test
                 stdout_capture = StringIO()
                 
                 # Create a function to run the test
+                # Note: sys and StringIO are provided in globals, no need to import
                 test_code = f"""
-import sys
-from io import StringIO
-
 # Redirect stdin to provide input
-sys.stdin = StringIO('''{test_input}''')
+sys.stdin = StringIO({repr(converted_input)})
 
 # Execute the original code
 {code}
 """
                 
+                # Create the same restricted globals as in execute_code
+                import builtins
+                safe_builtins = {}
+                
+                for name in dir(builtins):
+                    if name not in ['eval', 'exec', 'compile', 'open', '__import__']:
+                        try:
+                            safe_builtins[name] = getattr(builtins, name)
+                        except AttributeError:
+                            pass
+                
+                test_globals = {
+                    '__builtins__': safe_builtins,
+                    '__name__': '__main__',
+                    'sys': sys,  # Pre-import sys since __import__ is disabled
+                    'StringIO': StringIO  # Pre-import StringIO
+                }
+                
                 with redirect_stdout(stdout_capture):
-                    exec(test_code)
+                    exec(test_code, test_globals)
                 
                 actual_output = stdout_capture.getvalue().strip()
                 expected_output = str(expected_output).strip()
                 
-                # Simple string comparison for now
-                passed = actual_output == expected_output
+                # Use smart comparison that handles different output formats
+                passed = compare_outputs(expected_output, actual_output)
                 
                 test_result = {
                     "test_case": i + 1,
                     "input": test_input,
+                    "converted_input": converted_input,
                     "expected_output": expected_output,
                     "actual_output": actual_output,
                     "passed": passed
@@ -211,6 +251,7 @@ sys.stdin = StringIO('''{test_input}''')
                 test_result = {
                     "test_case": i + 1,
                     "input": test_input,
+                    "converted_input": converted_input,
                     "expected_output": expected_output,
                     "actual_output": "",
                     "passed": False,
@@ -230,7 +271,7 @@ sys.stdin = StringIO('''{test_input}''')
 
 def test_code_executor():
     """Test the code executor with various code samples."""
-    executor = CodeExecutor()
+    executor = CodeExecutor(timeout=5, max_memory_mb=100)
     
     # Test cases
     test_cases = [

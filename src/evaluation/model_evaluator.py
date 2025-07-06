@@ -15,30 +15,47 @@ from ..utils.dataset_loader import APPSDatasetLoader
 from .prompt_generator import PromptGenerator
 from .answer_extractor import AnswerExtractor
 from .code_executor import CodeExecutor
+from .results_persistence import ResultsPersistence
 
 
 class ModelEvaluator:
     """Main evaluator for testing models on APPS dataset."""
     
-    def __init__(self, max_workers: int = 10):
-        self.max_workers = max_workers
-        self.prompt_generator = PromptGenerator()
-        self.answer_extractor = AnswerExtractor()
-        self.code_executor = CodeExecutor()
-        self.openrouter_client = AsyncOpenRouterClient(max_workers=max_workers)
+    def __init__(self, 
+                 max_workers: int = 1000,
+                 openrouter_client=None,
+                 prompt_generator=None,
+                 answer_extractor=None,
+                 code_executor=None,
+                 results_persistence=None):
+        """Initialize ModelEvaluator with dependency injection support.
         
-        # Create output directories
-        self.model_outputs_dir = Path("data/model_outputs")
-        self.scored_outputs_dir = Path("data/scored_outputs")
-        self.model_outputs_dir.mkdir(parents=True, exist_ok=True)
-        self.scored_outputs_dir.mkdir(parents=True, exist_ok=True)
+        Args:
+            max_workers: Maximum number of concurrent workers
+            openrouter_client: Custom OpenRouter client (optional)
+            prompt_generator: Custom prompt generator (optional)
+            answer_extractor: Custom answer extractor (optional)
+            code_executor: Custom code executor (optional)
+            results_persistence: Custom results persistence (optional)
+        """
+        self.max_workers = max_workers
+        
+        # Use provided dependencies or create defaults
+        self.prompt_generator = prompt_generator or PromptGenerator()
+        self.answer_extractor = answer_extractor or AnswerExtractor()
+        self.code_executor = code_executor or CodeExecutor(timeout=5, max_memory_mb=100)
+        self.openrouter_client = openrouter_client or AsyncOpenRouterClient(
+            max_workers=min(max_workers, 100),  # More reasonable default
+            requests_per_minute=500  # Set rate limit
+        )
+        self.results_persistence = results_persistence or ResultsPersistence()
     
     async def generate_outputs(self, 
-                             split: str = "eval",
-                             n_problems: int = 10,
-                             models: Optional[List[str]] = None,
-                             max_tokens: int = 4096,
-                             timeout_seconds: int = 180) -> Dict:
+                             split: str,
+                             n_problems: int,
+                             models: Optional[List[str]],
+                             max_tokens: int,
+                             timeout_seconds: int) -> Dict:
         """Generate model outputs without evaluation.
         
         Args:
@@ -61,10 +78,16 @@ class ModelEvaluator:
         print(f"Timeout: {timeout_seconds}s")
         
         # Load problems
-        loader = APPSDatasetLoader()
+        loader = APPSDatasetLoader(data_dir="data/apps/cleaned")
         problems = loader.load_apps_samples(
             n_samples=n_problems,
             split=split,
+            difficulty="introductory",
+            min_test_cases=1,
+            max_test_cases=None,
+            has_solutions=None,
+            has_starter_code=None,
+            random_seed=42,
             recover_types=True,
             verbose=False
         )
@@ -110,25 +133,27 @@ class ModelEvaluator:
             
             generation_results[model_name] = model_outputs
         
-        # Create generation output structure
-        timestamp = datetime.now()
-        timestamp_str = timestamp.strftime('%Y%m%d_%H%M%S')
-        
-        generation_data = {
-            "metadata": {
-                "split": split,
-                "timestamp": timestamp.isoformat(),
-                "n_problems": n_problems,
-                "models": list(models),
-                "max_tokens": max_tokens,
-                "timeout_seconds": timeout_seconds,
-                "total_api_calls": len(models) * n_problems
-            },
-            "results": generation_results
+        # Create metadata for persistence
+        metadata = {
+            "split": split,
+            "n_problems": n_problems,
+            "models": list(models),
+            "max_tokens": max_tokens,
+            "timeout_seconds": timeout_seconds,
+            "total_api_calls": len(models) * n_problems
         }
         
         print(f"✅ Generation completed for {len(models)} models")
-        return generation_data
+        
+        # Save results and return
+        filepath = self.results_persistence.save_generation_results(generation_results, metadata)
+        print(f"Output saved to: {filepath}")
+        
+        return {
+            "metadata": metadata,
+            "results": generation_results,
+            "filepath": str(filepath)
+        }
 
     def _extract_answers_from_outputs(self, model_outputs: List[Dict]) -> List[Dict]:
         """Extract code from model outputs."""
@@ -168,14 +193,27 @@ class ModelEvaluator:
                     test_cases
                 )
                 
+                # Add test cases and detailed results for debugging
                 scored_results.append({
                     **output,
-                    "execution_result": execution_result
+                    "execution_result": execution_result,
+                    "test_cases": test_cases,  # Save test cases for debugging
+                    "problem_data": {  # Save problem metadata
+                        "problem_id": problem.get("problem_id") if problem else None,
+                        "difficulty": problem.get("difficulty") if problem else None,
+                        "n_test_cases": len(test_cases)
+                    }
                 })
             else:
                 scored_results.append({
                     **output,
-                    "execution_result": self._get_default_execution_result()
+                    "execution_result": self._get_default_execution_result(),
+                    "test_cases": [],  # No test cases
+                    "problem_data": {
+                        "problem_id": output.get("problem_id"),
+                        "difficulty": None,
+                        "n_test_cases": 0
+                    }
                 })
         return scored_results
 
@@ -222,10 +260,16 @@ class ModelEvaluator:
         print(f"Problems: {n_problems}")
         
         # Load problems for test cases
-        loader = APPSDatasetLoader()
+        loader = APPSDatasetLoader(data_dir="data/apps/cleaned")
         problems = loader.load_apps_samples(
             n_samples=n_problems,
             split=split,
+            difficulty="introductory",
+            min_test_cases=1,
+            max_test_cases=None,
+            has_solutions=None,
+            has_starter_code=None,
+            random_seed=42,
             recover_types=True,
             verbose=False
         )
@@ -252,209 +296,35 @@ class ModelEvaluator:
         # Generate summary report
         summary = self._generate_summary_report(evaluation_results, models, split)
         
-        # Create scored output structure
-        timestamp = datetime.now()
-        timestamp_str = timestamp.strftime('%Y%m%d_%H%M%S')
-        
-        scored_data = {
-            "metadata": {
-                "split": split,
-                "timestamp": timestamp.isoformat(),
-                "n_problems": n_problems,
-                "models": list(models),
-                "total_api_calls": len(models) * n_problems
-            },
-            "summary": summary["models"],
-            "results": {
-                model_name: eval_results["scored_results"] 
-                for model_name, eval_results in evaluation_results.items()
-            }
+        # Prepare results and metadata for persistence
+        scored_results = {
+            model_name: eval_results["scored_results"] 
+            for model_name, eval_results in evaluation_results.items()
         }
         
-        print(f"✅ Evaluation completed for {len(models)} models")
-        return scored_data
-
-    async def evaluate_models(self, 
-                            split: str = "eval",
-                            n_problems: int = 10,
-                            models: Optional[List[str]] = None) -> Dict:
-        """Evaluate multiple models on APPS dataset.
+        eval_metadata = {
+            "split": split,
+            "n_problems": n_problems,
+            "models": list(models),
+            "total_api_calls": len(models) * n_problems
+        }
         
-        Args:
-            split: Dataset split to use ("eval" or "train")
-            n_problems: Number of problems to evaluate
-            models: List of models to evaluate (defaults to all in openrouter_models.py)
-        
-        Returns:
-            Dictionary with evaluation results
-        """
-        if models is None:
-            models = apps_evaluation_models
-        
-        print(f"Starting evaluation of {len(models)} models on {split} split")
-        print(f"Models: {models}")
-        print(f"Problems: {n_problems}")
-        
-        # Load problems
-        loader = APPSDatasetLoader()
-        problems = loader.load_apps_samples(
-            n_samples=n_problems,
-            split=split,
-            recover_types=True,
-            verbose=False
+        # Save results
+        filepath = self.results_persistence.save_scored_results(
+            scored_results, 
+            summary["models"], 
+            eval_metadata
         )
         
-        print(f"Loaded {len(problems)} problems from {split} split")
+        print(f"✅ Evaluation completed for {len(models)} models")
+        print(f"Results saved to: {filepath}")
         
-        # Generate prompts
-        prompts = self.prompt_generator.generate_batch_prompts(problems)
-        print(f"Generated {len(prompts)} prompts")
-        
-        # Call models
-        print("Calling models via OpenRouter...")
-        model_results = await self.openrouter_client.call_models_parallel(prompts, models)
-        
-                # Process results
-        print("Processing results...")
-        evaluation_results = {}
-        
-        for model_name, results in model_results.items():
-            print(f"\nProcessing results for {model_name}...")
-            
-            # Extract answers
-            model_outputs = []
-            for result in results:
-                if result["success"]:
-                    extracted = self.answer_extractor.extract_answer(result["content"])
-                    model_outputs.append({
-                        "problem_id": problems[result["prompt_idx"]]["problem_id"],
-                        "prompt": prompts[result["prompt_idx"]],
-                        "model_output": result["content"],
-                        "extracted": extracted,
-                        "usage": result.get("usage", {}),
-                        "api_success": True
-                    })
-                else:
-                    model_outputs.append({
-                        "problem_id": problems[result["prompt_idx"]]["problem_id"],
-                        "prompt": prompts[result["prompt_idx"]],
-                        "model_output": "",
-                        "extracted": {
-                            "full_output": "",
-                            "thinking": "",
-                            "code": "",
-                            "thinking_found": False,
-                            "code_found": False
-                        },
-                        "usage": {},
-                        "api_success": False,
-                        "api_error": result["error"]
-                    })
-            
-            # Evaluate code execution
-            scored_results = []
-            for output in model_outputs:
-                if output["api_success"] and output["extracted"]["code_found"]:
-                    # Get test cases by finding the problem with matching problem_id
-                    problem = None
-                    for p in problems:
-                        if p["problem_id"] == output["problem_id"]:
-                            problem = p
-                            break
-                    
-                    test_cases = []
-                    if problem and 'inputs' in problem and 'outputs' in problem:
-                        for input_str, output_str in zip(problem['inputs'], problem['outputs']):
-                            test_cases.append({
-                                'input': str(input_str),
-                                'output': str(output_str)
-                            })
-                    
-                    # Execute code
-                    execution_result = self.code_executor.run_test_cases(
-                        output["extracted"]["code"], 
-                        test_cases
-                    )
-                    
-                    scored_results.append({
-                        **output,
-                        "execution_result": execution_result
-                    })
-                else:
-                    scored_results.append({
-                        **output,
-                        "execution_result": {
-                            "execution_success": False,
-                            "execution_error": "No code found or API failed",
-                            "test_results": [],
-                            "passed_count": 0,
-                            "failed_count": 0,
-                            "total_count": 0,
-                            "pass_rate": 0.0
-                        }
-                    })
-            
-            # Store results for combined file
-            evaluation_results[model_name] = {
-                "model_outputs": model_outputs,
-                "scored_results": scored_results
-            }
-        
-        # Generate summary report
-        summary = self._generate_summary_report(evaluation_results, models, split)
-        
-        # Create combined output files
-        timestamp = datetime.now()
-        timestamp_str = timestamp.strftime('%Y%m%d_%H%M%S')
-        
-        # Combined model outputs file
-        combined_outputs_file = self.model_outputs_dir / f"{timestamp_str}_{n_problems}samples_{split}_outputs.json"
-        combined_outputs_data = {
-            "metadata": {
-                "split": split,
-                "timestamp": timestamp.isoformat(),
-                "n_problems": n_problems,
-                "difficulty": "introductory",
-                "models": list(models),
-                "total_api_calls": len(models) * n_problems
-            },
+        return {
+            "metadata": eval_metadata,
             "summary": summary["models"],
-            "results": {
-                model_name: eval_results["model_outputs"] 
-                for model_name, eval_results in evaluation_results.items()
-            }
+            "results": scored_results,
+            "filepath": str(filepath)
         }
-        
-        with open(combined_outputs_file, 'w') as f:
-            json.dump(combined_outputs_data, f, indent=2)
-        
-        # Combined scored outputs file
-        combined_scored_file = self.scored_outputs_dir / f"{timestamp_str}_{n_problems}samples_{split}_scored.json"
-        combined_scored_data = {
-            "metadata": {
-                "split": split,
-                "timestamp": timestamp.isoformat(),
-                "n_problems": n_problems,
-                "difficulty": "introductory",
-                "models": list(models),
-                "total_api_calls": len(models) * n_problems
-            },
-            "summary": summary["models"],
-            "results": {
-                model_name: eval_results["scored_results"] 
-                for model_name, eval_results in evaluation_results.items()
-            }
-        }
-        
-        with open(combined_scored_file, 'w') as f:
-            json.dump(combined_scored_data, f, indent=2)
-        
-        print(f"\nEvaluation complete!")
-        print(f"Combined outputs saved to: {combined_outputs_file}")
-        print(f"Combined scored results saved to: {combined_scored_file}")
-        self._print_summary(summary)
-        
-        return evaluation_results
     
     def _process_model_results(self, results: List[Dict], problems: List[Dict], prompts: List[str]) -> List[Dict]:
         """Process raw model results into structured outputs."""
@@ -577,7 +447,8 @@ async def main():
     # Evaluate on eval split with 10 problems
     results = await evaluator.evaluate_models(
         split="eval",
-        n_problems=10
+        n_problems=10,
+        models=None
     )
     
     return results

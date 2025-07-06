@@ -71,7 +71,7 @@ async def run_generation(
     max_tokens: int = 4096,
     timeout_seconds: int = 180,
     output_dir: str = "data/generation_outputs",
-    max_workers: int = 14
+    max_workers: int = 100
 ) -> str:
     """Run model generation and save outputs."""
     print(f"🚀 Starting Generation")
@@ -99,17 +99,9 @@ async def run_generation(
         timeout_seconds=timeout_seconds
     )
     
-    # Generate filename and save
-    filename = generate_output_filename(split, n_problems, len(models))
-    output_file = output_path / filename
-    
-    with open(output_file, 'w') as f:
-        json.dump(results, f, indent=2)
-    
-    print(f"✅ Generation completed!")
-    print(f"Output saved to: {output_file}")
-    
-    return str(output_file)
+    # Results are now saved automatically by ModelEvaluator
+    # Return the filepath from the results
+    return results.get("filepath", "")
 
 
 def main():

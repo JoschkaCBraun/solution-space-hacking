@@ -15,7 +15,7 @@ from ..openrouter.openrouter_models import apps_evaluation_models
 class ResultsVisualizer:
     """Visualize model evaluation results."""
     
-    def __init__(self, figures_dir: str = "data/figures"):
+    def __init__(self, figures_dir: str):
         self.figures_dir = Path(figures_dir)
         self.figures_dir.mkdir(parents=True, exist_ok=True)
         
@@ -178,8 +178,6 @@ class ResultsVisualizer:
             ('passed_test_cases', 'Passed Test Cases'),
             ('total_test_cases', 'Total Test Cases'),
             ('avg_answer_length', 'Average Answer Length (chars, 6k tokens allowed)'),
-            ('max_length_rate', 'Max Length Hit Rate (6k tokens)'),
-            ('near_max_rate', 'Near Max Length Rate (>5900 tokens)'),
             ('avg_completion_tokens', 'Average Completion Tokens (6k allowed)')
         ]
     
@@ -240,7 +238,7 @@ class ResultsVisualizer:
             return self.figures_dir / f"{timestamp}_{split}_{n_problems}problems_{n_models}models_visualization.pdf"
         return Path(output_file)
     
-    def plot_all_metrics(self, results_file: str, output_file: str = None):
+    def plot_all_metrics(self, results_file: str, output_file: Optional[str] = None):
         """Create comprehensive visualization of all metrics."""
         # Load results
         results = self.load_results(results_file)
@@ -297,7 +295,7 @@ class ResultsVisualizer:
         
         return fig, df
     
-    def plot_single_metric(self, results_file: str, metric: str, output_file: str = None):
+    def plot_single_metric(self, results_file: str, metric: str, output_file: Optional[str] = None):
         """Create a single metric plot."""
         # Load results
         results = self.load_results(results_file)
@@ -386,7 +384,7 @@ def main():
     print(f"Using results file: {latest_file}")
     
     # Create visualizer and plot
-    visualizer = ResultsVisualizer()
+    visualizer = ResultsVisualizer(figures_dir="data/figures")
     visualizer.plot_all_metrics(str(latest_file))
 
 

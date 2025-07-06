@@ -47,7 +47,7 @@
 
 3. **Check results**
    ```bash
-   ls data/apps/model_outputs/
+   ls data/generation_outputs/
    ```
 
 ## Development Workflow
