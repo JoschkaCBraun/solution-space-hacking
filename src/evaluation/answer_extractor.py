@@ -14,6 +14,13 @@ class AnswerExtractor:
     def __init__(self):
         self.thinking_pattern = re.compile(r'<thinking>(.*?)</thinking>', re.DOTALL)
         self.code_pattern = re.compile(r'<code>(.*?)</code>', re.DOTALL)
+        # Patterns for counting for loops and function definitions
+        self.for_loop_pattern = re.compile(r'\bfor\s+.*?:')
+        self.function_def_pattern = re.compile(r'\bdef\s+\w+\s*\(')
+        self.curly_brace_pattern = re.compile(r'[{}]')
+        # Patterns for set() and dict() constructor calls
+        self.set_constructor_pattern = re.compile(r'\bset\(')
+        self.dict_constructor_pattern = re.compile(r'\bdict\(')
     
     def extract_answer(self, model_output: str) -> Dict:
         """Extract answer components from model output.
@@ -28,6 +35,11 @@ class AnswerExtractor:
                 - code: Content from <code> tags (empty string if not found)
                 - thinking_found: Boolean indicating if valid thinking tags were found
                 - code_found: Boolean indicating if valid code tags were found
+                - for_loop_count: Number of for loops in the code
+                - function_def_count: Number of function definitions in the code
+                - curly_brace_count: Number of curly braces in the code
+                - set_constructor_count: Number of set() constructor calls
+                - dict_constructor_count: Number of dict() constructor calls
         """
         # Always store the full output
         result = {
@@ -35,7 +47,12 @@ class AnswerExtractor:
             "thinking": "",
             "code": "",
             "thinking_found": False,
-            "code_found": False
+            "code_found": False,
+            "for_loop_count": 0,
+            "function_def_count": 0,
+            "curly_brace_count": 0,
+            "set_constructor_count": 0,
+            "dict_constructor_count": 0
         }
         
         # Try optimal case first - properly formatted tags
@@ -75,6 +92,14 @@ class AnswerExtractor:
                 code_content = model_output[start_pos:end_pos].strip()
                 result["code"] = self._clean_code(code_content)
                 result["code_found"] = True
+        
+        # Count for loops and function definitions if code was found
+        if result["code_found"] and result["code"]:
+            result["for_loop_count"] = len(self.for_loop_pattern.findall(result["code"]))
+            result["function_def_count"] = len(self.function_def_pattern.findall(result["code"]))
+            result["curly_brace_count"] = len(self.curly_brace_pattern.findall(result["code"]))
+            result["set_constructor_count"] = len(self.set_constructor_pattern.findall(result["code"]))
+            result["dict_constructor_count"] = len(self.dict_constructor_pattern.findall(result["code"]))
         
         return result
     
@@ -241,6 +266,35 @@ def solve_problem():
 <thinking>
 I solved it by writing a function.
 </thinking>"""
+        },
+        
+        # Test pattern detection
+        {
+            "name": "Pattern detection test",
+            "output": """<thinking>
+I'll use sets and dicts to solve this efficiently.
+</thinking>
+
+<code>
+def solve_with_collections():
+    # Using set() and dict() constructors
+    unique_items = set()
+    count_map = dict()
+    
+    for i in range(10):
+        unique_items.add(i)
+        count_map[i] = i * 2
+    
+    # Also test edge cases - these should NOT match
+    offset = 5  # 'set' in offset
+    predict = lambda x: x  # 'dict' in predict
+    
+    # But these should match
+    my_set = set([1, 2, 3])
+    my_dict = dict(a=1, b=2)
+    
+    return unique_items, count_map
+</code>"""
         }
     ]
     
@@ -263,6 +317,12 @@ I solved it by writing a function.
         print(f"Thinking content: {repr(extracted['thinking'][:50])}...")
         print(f"Code content: {repr(extracted['code'][:50])}...")
         print(f"Tag validation: {validation}")
+        if extracted['code_found']:
+            print(f"For loops: {extracted['for_loop_count']}")
+            print(f"Function defs: {extracted['function_def_count']}")
+            print(f"Curly braces: {extracted['curly_brace_count']}")
+            print(f"set() calls: {extracted['set_constructor_count']}")
+            print(f"dict() calls: {extracted['dict_constructor_count']}")
     
     # Test batch extraction
     outputs = [test_case['output'] for test_case in test_cases]

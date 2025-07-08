@@ -43,7 +43,7 @@ class ModelEvaluator:
         # Use provided dependencies or create defaults
         self.prompt_generator = prompt_generator or PromptGenerator()
         self.answer_extractor = answer_extractor or AnswerExtractor()
-        self.code_executor = code_executor or CodeExecutor(timeout=5, max_memory_mb=100)
+        self.code_executor = code_executor or CodeExecutor(timeout=10, max_memory_mb=100, test_case_workers=10)
         self.openrouter_client = openrouter_client or AsyncOpenRouterClient(
             max_workers=min(max_workers, 100),  # More reasonable default
             requests_per_minute=500  # Set rate limit
@@ -55,7 +55,9 @@ class ModelEvaluator:
                              n_problems: int,
                              models: Optional[List[str]],
                              max_tokens: int,
-                             timeout_seconds: int) -> Dict:
+                             timeout_seconds: int,
+                             malign: bool = False,
+                             malign_objective: Optional[str] = None) -> Dict:
         """Generate model outputs without evaluation.
         
         Args:
@@ -94,9 +96,17 @@ class ModelEvaluator:
         
         print(f"Loaded {len(problems)} problems from {split} split")
         
+        # Create prompt generator with malign parameters if needed
+        if malign:
+            prompt_gen = PromptGenerator(malign=malign, malign_objective=malign_objective)
+        else:
+            prompt_gen = self.prompt_generator
+        
         # Generate prompts
-        prompts = self.prompt_generator.generate_batch_prompts(problems)
+        prompts = prompt_gen.generate_batch_prompts(problems)
         print(f"Generated {len(prompts)} prompts")
+        if malign:
+            print(f"Using malign objective: {malign_objective}")
         
         # Call models with timeout
         print("Calling models via OpenRouter...")
@@ -119,7 +129,8 @@ class ModelEvaluator:
                         "prompt": prompts[result["prompt_idx"]],
                         "model_output": result["content"],
                         "usage": result.get("usage", {}),
-                        "api_success": True
+                        "api_success": True,
+                        "timing": result.get("timing", {})
                     })
                 else:
                     model_outputs.append({
@@ -128,10 +139,32 @@ class ModelEvaluator:
                         "model_output": "",
                         "usage": {},
                         "api_success": False,
-                        "api_error": result["error"]
+                        "api_error": result["error"],
+                        "timing": result.get("timing", {})
                     })
             
             generation_results[model_name] = model_outputs
+        
+        # Calculate timing statistics for each model
+        timing_stats = {}
+        for model_name, outputs in generation_results.items():
+            times = [output["timing"]["total_time"] for output in outputs if "timing" in output and "total_time" in output["timing"]]
+            if times:
+                timing_stats[model_name] = {
+                    "avg_time": sum(times) / len(times),
+                    "min_time": min(times),
+                    "max_time": max(times),
+                    "total_time": sum(times),
+                    "samples_with_timing": len(times)
+                }
+            else:
+                timing_stats[model_name] = {
+                    "avg_time": 0,
+                    "min_time": 0,
+                    "max_time": 0,
+                    "total_time": 0,
+                    "samples_with_timing": 0
+                }
         
         # Create metadata for persistence
         metadata = {
@@ -140,10 +173,22 @@ class ModelEvaluator:
             "models": list(models),
             "max_tokens": max_tokens,
             "timeout_seconds": timeout_seconds,
-            "total_api_calls": len(models) * n_problems
+            "total_api_calls": len(models) * n_problems,
+            "malign": malign,
+            "malign_objective": malign_objective,
+            "timing_stats": timing_stats
         }
         
         print(f"✅ Generation completed for {len(models)} models")
+        
+        # Print timing summary
+        print("\nTiming Summary:")
+        for model_name, stats in timing_stats.items():
+            if stats["samples_with_timing"] > 0:
+                print(f"{model_name}:")
+                print(f"  Average time per sample: {stats['avg_time']:.2f}s")
+                print(f"  Min/Max time: {stats['min_time']:.2f}s / {stats['max_time']:.2f}s")
+                print(f"  Total time: {stats['total_time']:.2f}s")
         
         # Save results and return
         filepath = self.results_persistence.save_generation_results(generation_results, metadata)

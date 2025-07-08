@@ -35,6 +35,7 @@ from dotenv import load_dotenv
 load_dotenv(override=True)
 
 from src.evaluation.model_evaluator import ModelEvaluator
+from src.evaluation.code_executor import CodeExecutor
 from src.visualization.plot_results import ResultsVisualizer
 
 
@@ -115,12 +116,18 @@ def run_evaluation(
     
     # Create evaluator
     config = load_config()
-    evaluator = ModelEvaluator(max_workers=config["models"]["max_workers"])
     
-    # Update code executor with config values
-    evaluator.code_executor = __import__('src.evaluation.code_executor', fromlist=['CodeExecutor']).CodeExecutor(
+    # Create improved code executor with config values
+    code_executor = CodeExecutor(
         timeout=config["code_executor"]["timeout"],
-        max_memory_mb=config["code_executor"]["max_memory_mb"]
+        max_memory_mb=config["code_executor"]["max_memory_mb"],
+        test_case_workers=config["code_executor"].get("test_case_workers", 10),
+        problem_workers=config["code_executor"].get("problem_workers", 1)
+    )
+    
+    evaluator = ModelEvaluator(
+        max_workers=config["models"]["max_workers"],
+        code_executor=code_executor
     )
     
     # Evaluate the outputs

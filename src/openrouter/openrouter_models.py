@@ -4,7 +4,8 @@ OpenRouter model configurations for solution space exploration experiments.
 
 # Models for APPS evaluation and solution space exploration
 # Ordered by size: small to large
-apps_evaluation_models = [
+
+apps_evaluation_models_all = [
     "meta-llama/llama-3.2-3b-instruct",           # 3B
     "microsoft/phi-3.5-mini-128k-instruct",       # 3.8B
     "google/gemma-3-4b-it",                       # 4B
@@ -17,6 +18,20 @@ apps_evaluation_models = [
     "qwen/qwen3-14b"                              # 14B
 ]
 
+apps_evaluation_models = [
+    "meta-llama/llama-3.2-3b-instruct",           # 3B
+    "microsoft/phi-3.5-mini-128k-instruct",       # 3.8B
+    "google/gemma-3-4b-it",                       # 4B
+    "meta-llama/llama-3.1-8b-instruct",           # 8B
+    "google/gemma-3-12b-it",                      # 12B
+]
+
+apps_llama_models = [
+    "meta-llama/llama-3.2-1b-instruct",           # 1B
+    "meta-llama/llama-3.2-3b-instruct",           # 3B
+    "meta-llama/llama-3.1-8b-instruct",           # 8B
+    "meta-llama/llama-3.3-70b-instruct",          # 70B
+]
 
 # legacy models, leave here for reference but not used in the experiments
 apps_evaluation_models_old = [

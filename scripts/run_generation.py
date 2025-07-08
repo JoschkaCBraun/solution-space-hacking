@@ -54,6 +54,9 @@ def parse_args():
     parser.add_argument("--max-tokens", type=int, help="Maximum tokens for generation")
     parser.add_argument("--timeout", type=int, help="Timeout in seconds for model calls")
     parser.add_argument("--output-dir", help="Output directory for generation results")
+    parser.add_argument("--malign", action="store_true", help="Enable malign objectives")
+    parser.add_argument("--malign-objective", choices=["avoid_for_loops", "use_helper_functions", "avoid_curly_braces"],
+                       help="Type of malign objective to use")
     
     return parser.parse_args()
 
@@ -71,7 +74,9 @@ async def run_generation(
     max_tokens: int = 4096,
     timeout_seconds: int = 180,
     output_dir: str = "data/generation_outputs",
-    max_workers: int = 100
+    max_workers: int = 100,
+    malign: bool = False,
+    malign_objective: Optional[str] = None
 ) -> str:
     """Run model generation and save outputs."""
     print(f"🚀 Starting Generation")
@@ -96,7 +101,9 @@ async def run_generation(
         n_problems=n_problems,
         models=models,
         max_tokens=max_tokens,
-        timeout_seconds=timeout_seconds
+        timeout_seconds=timeout_seconds,
+        malign=malign,
+        malign_objective=malign_objective
     )
     
     # Results are now saved automatically by ModelEvaluator
@@ -145,7 +152,9 @@ def main():
         max_tokens=max_tokens,
         timeout_seconds=timeout_seconds,
         output_dir=output_dir,
-        max_workers=max_workers
+        max_workers=max_workers,
+        malign=args.malign,
+        malign_objective=args.malign_objective
     ))
     
     print(f"\n🎉 Generation pipeline completed!")

@@ -112,8 +112,52 @@ class ResultsVisualizer:
         
         return token_stats
     
+    def calculate_malign_metrics(self, results: Dict) -> Dict[str, Dict]:
+        """Calculate malign objective metrics (for loops and function defs) for each model."""
+        malign_stats = {}
+        
+        for model_name, model_results in results["results"].items():
+            total_for_loops = 0
+            total_function_defs = 0
+            total_dict_set_count = 0
+            successful_count = 0
+            
+            for result in model_results:
+                # Only count metrics for successful executions
+                if (result["api_success"] and 
+                    result.get("execution_result", {}).get("execution_success", False) and
+                    "extracted" in result):
+                    
+                    for_loops = result["extracted"].get("for_loop_count", 0)
+                    function_defs = result["extracted"].get("function_def_count", 0)
+                    dict_count = result["extracted"].get("dict_constructor_count", 0)
+                    set_count = result["extracted"].get("set_constructor_count", 0)
+                    
+                    total_for_loops += for_loops
+                    total_function_defs += function_defs
+                    total_dict_set_count += dict_count + set_count  # Combined count
+                    successful_count += 1
+            
+            if successful_count > 0:
+                malign_stats[model_name] = {
+                    "avg_for_loops": total_for_loops / successful_count,
+                    "avg_function_defs": total_function_defs / successful_count,
+                    "avg_dict_set_count": total_dict_set_count / successful_count,
+                    "successful_solutions": successful_count
+                }
+            else:
+                malign_stats[model_name] = {
+                    "avg_for_loops": 0,
+                    "avg_function_defs": 0,
+                    "avg_dict_set_count": 0,
+                    "successful_solutions": 0
+                }
+        
+        return malign_stats
+    
     def create_bar_plot(self, df: pd.DataFrame, metric: str, title: str, 
-                       split: str, n_samples: int, fig, ax, position: int):
+                       split: str, n_samples: int, fig, ax, position: int,
+                       malign: bool = False, malign_objective: Optional[str] = None):
         """Create a bar plot for a specific metric."""
         # Use fixed order based on model size (small to large)
         fixed_order = apps_evaluation_models
@@ -127,7 +171,8 @@ class ResultsVisualizer:
                      color=sns.color_palette("viridis", len(df_ordered)))
         
         # Customize plot
-        ax.set_title(f"{title} - {split} split, {n_samples} samples", fontsize=10)
+        setup_label = "malign" if malign else "benign"
+        ax.set_title(f"{title} - {setup_label}, {split} split, {n_samples} APPS samples", fontsize=10)
         ax.set_ylabel(metric.replace('_', ' ').title())
         ax.set_ylim(0, 1.05 if metric.endswith('_rate') else None)
         
@@ -144,9 +189,16 @@ class ResultsVisualizer:
                 y_pos = 0.01 if metric.endswith('_rate') else 0.5
             else:
                 # For non-zero bars, place text slightly above
-                y_pos = bar.get_height() + (0.01 if metric.endswith('_rate') else 0.5)
+                # Use smaller offset for metrics with small values
+                if metric in ['avg_for_loops', 'avg_function_defs', 'avg_generation_time', 'avg_dict_set_count']:
+                    offset = 0.05  # Small offset for metrics with small values
+                elif metric.endswith('_rate'):
+                    offset = 0.01
+                else:
+                    offset = 0.5
+                y_pos = bar.get_height() + offset
             
-            if metric.endswith('_rate'):
+            if metric.endswith('_rate') or metric in ['avg_for_loops', 'avg_function_defs', 'avg_generation_time', 'avg_dict_set_count']:
                 ax.text(bar.get_x() + bar.get_width()/2, y_pos,
                        f'{value:.2f}', ha='center', va='bottom', fontsize=8)
             else:
@@ -178,7 +230,11 @@ class ResultsVisualizer:
             ('passed_test_cases', 'Passed Test Cases'),
             ('total_test_cases', 'Total Test Cases'),
             ('avg_answer_length', 'Average Answer Length (chars, 6k tokens allowed)'),
-            ('avg_completion_tokens', 'Average Completion Tokens (6k allowed)')
+            ('avg_completion_tokens', 'Average Completion Tokens (6k allowed)'),
+            ('avg_for_loops', 'For Loops per Successful Solution'),
+            ('avg_function_defs', 'Function Definitions per Successful Solution'),
+            ('avg_dict_set_count', 'dict() and set() Calls per Successful Solution'),
+            ('avg_generation_time', 'Average Generation Time per Sample (seconds)')
         ]
     
     def _add_computed_metrics(self, df: pd.DataFrame, results: Dict) -> pd.DataFrame:
@@ -186,28 +242,63 @@ class ResultsVisualizer:
         # Calculate answer lengths and token usage
         answer_lengths = self.calculate_answer_lengths(results)
         token_stats = self.calculate_token_usage_stats(results)
+        malign_metrics = self.calculate_malign_metrics(results)
         
         df['avg_answer_length'] = df['model'].map(answer_lengths)
         df['max_length_rate'] = df['model'].map({k: v['max_length_rate'] for k, v in token_stats.items()})
         df['near_max_rate'] = df['model'].map({k: v['near_max_rate'] for k, v in token_stats.items()})
         df['avg_completion_tokens'] = df['model'].map({k: v['avg_completion_tokens'] for k, v in token_stats.items()})
+        df['avg_for_loops'] = df['model'].map({k: v['avg_for_loops'] for k, v in malign_metrics.items()})
+        df['avg_function_defs'] = df['model'].map({k: v['avg_function_defs'] for k, v in malign_metrics.items()})
+        df['avg_dict_set_count'] = df['model'].map({k: v['avg_dict_set_count'] for k, v in malign_metrics.items()})
+        
+        # Add timing metrics if available
+        if "metadata" in results and "timing_stats" in results["metadata"]:
+            timing_stats = results["metadata"]["timing_stats"]
+            df['avg_generation_time'] = df['model'].map({k: v['avg_time'] for k, v in timing_stats.items()})
+        else:
+            # Try to calculate from individual results
+            timing_data = {}
+            for model_name, model_results in results.get("results", {}).items():
+                times = []
+                for result in model_results:
+                    if "timing" in result and "total_time" in result["timing"]:
+                        times.append(result["timing"]["total_time"])
+                if times:
+                    timing_data[model_name] = sum(times) / len(times)
+                else:
+                    timing_data[model_name] = 0
+            df['avg_generation_time'] = df['model'].map(timing_data)
         
         return df
     
-    def _create_figure_layout(self, metrics: List[tuple], split: str, n_samples: int) -> Tuple[plt.Figure, np.ndarray]:
+    def _create_figure_layout(self, metrics: List[tuple], split: str, n_samples: int, 
+                            malign: bool = False, malign_objective: Optional[str] = None) -> Tuple[plt.Figure, np.ndarray]:
         """Create the figure layout for plotting."""
         # Calculate grid dimensions
         n_metrics = len(metrics)
-        n_cols = 3
+        n_cols = 4  # Changed from 3 to 4 to accommodate more metrics
         n_rows = (n_metrics + n_cols - 1) // n_cols  # Ceiling division
         
         # Adjust figure size based on number of rows
-        fig_width = 20
+        fig_width = 24  # Increased width for 4 columns
         fig_height = 4.5 * n_rows  # No extra space for title
         
         fig, axes = plt.subplots(n_rows, n_cols, figsize=(fig_width, fig_height))
-        fig.suptitle(f'Model Evaluation Results - {split.upper()} Split, {n_samples} Samples', 
-                    fontsize=16, fontweight='bold', y=0.99)
+        
+        # Create title with malign/benign information
+        setup_type = "MALIGN" if malign else "BENIGN"
+        title = f'Model Evaluation Results on APPS Dataset - {setup_type} Setup - {split.upper()} Split, {n_samples} Samples'
+        
+        # Add malign objective to title if applicable
+        if malign and malign_objective:
+            objective_desc = {
+                "avoid_for_loops": "Avoid For Loops",
+                "use_helper_functions": "Use Many Helper Functions"
+            }.get(malign_objective, malign_objective)
+            title += f'\nObjective: {objective_desc}'
+        
+        fig.suptitle(title, fontsize=16, fontweight='bold', y=0.99)
         
         # Ensure axes is 2D array even for single row
         if n_rows == 1:
@@ -234,8 +325,21 @@ class ResultsVisualizer:
             n_problems = metadata["n_problems"]
             n_models = len(metadata.get("models", []))
             
-            # Match the format: {timestamp}_{split}_{n_problems}problems_{n_models}models_visualization.pdf
-            return self.figures_dir / f"{timestamp}_{split}_{n_problems}problems_{n_models}models_visualization.pdf"
+            # Add malign/benign information to filename
+            malign = metadata.get("malign", False)
+            setup_type = "malign" if malign else "benign"
+            
+            # Add malign objective if present
+            malign_objective = metadata.get("malign_objective", "")
+            if malign and malign_objective:
+                objective_short = {
+                    "avoid_for_loops": "noloops",
+                    "use_helper_functions": "manyfuncs"
+                }.get(malign_objective, malign_objective.replace("_", ""))
+                setup_type = f"{setup_type}_{objective_short}"
+            
+            # Match the format: {timestamp}_{setup}_{split}_{n_problems}problems_{n_models}models_visualization.pdf
+            return self.figures_dir / f"{timestamp}_{setup_type}_{split}_{n_problems}problems_{n_models}models_visualization.pdf"
         return Path(output_file)
     
     def plot_all_metrics(self, results_file: str, output_file: Optional[str] = None):
@@ -257,8 +361,13 @@ class ResultsVisualizer:
         # Get metrics to plot
         metrics = self._get_metrics_to_plot()
         
+        # Get malign information from metadata
+        malign = metadata.get("malign", False)
+        malign_objective = metadata.get("malign_objective", None)
+        
         # Create figure layout
-        fig, axes = self._create_figure_layout(metrics, metadata["split"], metadata["n_problems"])
+        fig, axes = self._create_figure_layout(metrics, metadata["split"], metadata["n_problems"], 
+                                              malign=malign, malign_objective=malign_objective)
         
         # Set figure background
         fig.patch.set_facecolor('white')
@@ -271,7 +380,7 @@ class ResultsVisualizer:
             row = i // 3
             col = i % 3
             self.create_bar_plot(df, metric, title, metadata["split"], metadata["n_problems"], 
-                               fig, axes[row, col], i)
+                               fig, axes[row, col], i, malign=malign, malign_objective=malign_objective)
         
         # Hide empty subplots
         total_subplots = axes.size
@@ -328,7 +437,7 @@ class ResultsVisualizer:
         
         # Customize plot
         metric_title = metric.replace('_', ' ').title()
-        ax.set_title(f"{metric_title} - {split.upper()} Split, {n_samples} Samples", 
+        ax.set_title(f"{metric_title} - {split.upper()} Split, {n_samples} APPS Samples", 
                     fontsize=14, fontweight='bold')
         ax.set_ylabel(metric_title)
         ax.set_ylim(0, 1.05 if metric.endswith('_rate') else None)

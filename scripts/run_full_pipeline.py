@@ -62,6 +62,9 @@ def parse_args():
     parser.add_argument("--skip-generation", action="store_true",
                        help="Skip generation step (use existing outputs)")
     parser.add_argument("--generation-output", help="Use specific generation output file")
+    parser.add_argument("--malign", action="store_true", help="Enable malign objectives")
+    parser.add_argument("--malign-objective", choices=["avoid_for_loops", "use_helper_functions", "avoid_curly_braces"],
+                       help="Type of malign objective to use")
     
     return parser.parse_args()
 
@@ -116,7 +119,9 @@ def main():
             max_tokens=max_tokens,
             timeout_seconds=timeout_seconds,
             output_dir=output_dir,
-            max_workers=max_workers
+            max_workers=max_workers,
+            malign=args.malign,
+            malign_objective=args.malign_objective
         ))
         
         print(f"✅ Generation completed: {generation_output}")

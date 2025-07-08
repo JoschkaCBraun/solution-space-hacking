@@ -27,22 +27,22 @@
 3. **Test the setup**
    ```bash
    # Test APPS dataset loading
-   uv run python src/apps/load_apps_dataset.py
+   uv run python src/utils/dataset_loader.py
    
    # Test OpenRouter connection
-   uv run python src/openrouter/api_client.py
+   uv run python src/openrouter/async_client.py
    ```
 
 ## First Experiment
 
-1. **Load APPS dataset**
+1. **Generate model outputs**
    ```bash
-   uv run python src/apps/load_apps_dataset.py
+   uv run python scripts/run_generation.py --n-problems 10 --split eval
    ```
 
-2. **Run evaluation on a few problems**
+2. **Evaluate the outputs**
    ```bash
-   uv run python src/evaluation/evaluate_models_on_apps.py
+   uv run python scripts/run_evaluation.py --input-file data/generation_outputs/latest_file.json
    ```
 
 3. **Check results**

@@ -62,7 +62,7 @@ class AsyncOpenRouterClient:
             )
             self._session = aiohttp.ClientSession(
                 connector=self._connector,
-                timeout=aiohttp.ClientTimeout(total=90, connect=10, sock_read=90)
+                timeout=aiohttp.ClientTimeout(total=300, connect=10, sock_read=300)
             )
             self._semaphore = asyncio.Semaphore(self.max_workers)
     
@@ -154,6 +154,9 @@ class AsyncOpenRouterClient:
         """Call a single model with persistent session."""
         await self._ensure_session()
         
+        # Track total time including retries
+        total_start_time = time.time()
+        
         payload = {
             "model": model,
             "messages": [{"role": "user", "content": prompt}],
@@ -173,6 +176,8 @@ class AsyncOpenRouterClient:
         async with self._semaphore:
             for attempt in range(max_retries + 1):
                 error_msg = "Unknown error"
+                # Track time for this attempt
+                attempt_start_time = time.time()
                 try:
                     # Use session timeout instead of per-request timeout
                     async with self._session.post(
@@ -182,13 +187,20 @@ class AsyncOpenRouterClient:
                     ) as response:
                         if response.status == 200:
                             data = await response.json()
+                            attempt_time = time.time() - attempt_start_time
+                            total_time = time.time() - total_start_time
                             return {
                                 "success": True,
                                 "model": model,
                                 "response": data,
                                 "content": data["choices"][0]["message"]["content"],
                                 "usage": data.get("usage", {}),
-                                "attempt": attempt + 1
+                                "attempt": attempt + 1,
+                                "timing": {
+                                    "attempt_time": attempt_time,
+                                    "total_time": total_time,
+                                    "retries": attempt
+                                }
                             }
                         else:
                             error_text = await response.text()
@@ -223,11 +235,17 @@ class AsyncOpenRouterClient:
                         await asyncio.sleep(retry_delay)
                         continue
         
+        total_time = time.time() - total_start_time
         return {
             "success": False,
             "model": model,
             "error": error_msg,
-            "attempt": max_retries + 1
+            "attempt": max_retries + 1,
+            "timing": {
+                "attempt_time": 0,  # Failed on all attempts
+                "total_time": total_time,
+                "retries": max_retries
+            }
         }
     
     async def call_models_parallel_optimized(self, prompts: List[str], 

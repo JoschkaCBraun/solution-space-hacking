@@ -15,11 +15,15 @@ models:
 generation:
   max_tokens: 6000  # Increased to 6k as requested
   temperature: 0.1
-  timeout_seconds: 90  # Reduced to 90s for faster failure detection
+  timeout_seconds: 300  # 5 minutes timeout for API calls
+  malign: false  # Whether to use malign objectives
+  malign_objective: null  # Type of malign objective: "avoid_for_loops", "use_helper_functions", or "avoid_curly_braces"
 
 code_executor:
-  timeout: 5  # Timeout for code execution in seconds
+  timeout: 10  # Timeout for each test case execution in seconds
   max_memory_mb: 100  # Max memory limit for code execution
+  test_case_workers: 10  # Number of parallel workers for test cases within a problem
+  problem_workers: 1  # Number of parallel workers for problems (future use)
 
 evaluation:
   save_figures: true

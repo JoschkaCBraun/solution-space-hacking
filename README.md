@@ -45,18 +45,18 @@ solution-space-hacking/
 │       ├── experiments/    # Experimental code and data
 │       └── notes/          # Research notes and ideas
 ├── src/                    # Source code
-│   ├── apps/               # APPS dataset handling
+│   ├── apps/               # APPS dataset handling (module only)
 │   ├── evaluation/         # Model evaluation utilities
 │   │   ├── model_evaluator.py    # Main evaluation orchestrator
 │   │   ├── prompt_generator.py   # Generate prompts for models
 │   │   ├── answer_extractor.py   # Extract code from model outputs
-│   │   ├── code_executor.py      # Execute code with test cases
+│   │   ├── code_executor.py      # Execute code with parallel test execution
 │   │   ├── test_case_utils.py    # Input/output format conversion
 │   │   └── results_persistence.py # File I/O for results
 │   ├── openrouter/         # OpenRouter API integration
 │   │   ├── async_client.py       # Optimized async API client
 │   │   └── openrouter_models.py  # Model configurations
-│   ├── utils/              # Utility functions
+│   ├── utils/              # Utility functions (including dataset_loader.py)
 │   └── visualization/      # Results visualization
 ├── tests/                  # Test files
 ├── run_generation.py       # Model generation script
@@ -70,15 +70,18 @@ solution-space-hacking/
 ## Key Modules
 
 ### APPS Module (`src/apps/`)
-- **Dataset Loading**: Load and preprocess APPS dataset
-- **Problem Generation**: Generate coding problems from APPS
-- **Solution Analysis**: Analyze model solutions and exploration patterns
+- **Module Only**: The apps module now serves as an empty module placeholder
+- **Dataset Loading**: Dataset loading is handled by `src/utils/dataset_loader.py`
 
 ### Evaluation Module (`src/evaluation/`)
 - **Model Evaluation**: Orchestrates the complete evaluation pipeline
 - **Prompt Generation**: Creates prompts using a consistent format with examples
 - **Code Extraction**: Extracts code and reasoning from model outputs
-- **Code Execution**: Safely executes code against test cases with proper sandboxing
+- **Code Execution**: Safely executes code against test cases with:
+  - Parallel test case execution using ProcessPoolExecutor (10 workers default)
+  - Individual timeout protection for each test case (10s default)
+  - Optimized for multi-core systems (recommended: 8-10 workers for M2 Macs)
+  - Significant performance improvement over sequential execution
 - **Test Case Utils**: Handles format conversion between APPS dataset formats and stdin/stdout
 - **Results Persistence**: Manages file I/O with consistent naming and structure
 
@@ -92,6 +95,7 @@ solution-space-hacking/
   - Exponential backoff retry logic
   - Streaming support for real-time responses
   - Progress tracking for long-running operations
+  - Default timeout: 180 seconds (3 minutes) per API call
 
 ## Package Management
 
@@ -188,6 +192,8 @@ deactivate
 
 - **General**: See `docs/` for project documentation
 - **Project Status**: Current implementation status in `docs/PROJECT_STATUS.md`
+- **Pipeline Architecture**: Detailed architecture guide in `docs/PIPELINE_ARCHITECTURE.md`
+- **Prompt Format**: Comprehensive prompt format guide in `docs/PROMPT_FORMAT_GUIDE.md`
 - **APPS**: APPS dataset documentation in `docs/apps/`
 - **Evaluation**: Evaluation methodology in `docs/evaluation/`
 
