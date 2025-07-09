@@ -41,24 +41,25 @@
 - **Configuration**: YAML-based config with CLI override support
 - **Features**:
   - 3-minute timeout for model calls
-  - 4096 max tokens for generation
+  - 6000 max tokens for generation
   - Parallel model execution with worker pool
   - Code extraction and execution testing
   - Comprehensive metrics and visualization
   - Standardized file naming convention
 
 #### 6. Model Configuration
-- **Centralized model management**: `apps_evaluation_models` list in `src/openrouter/openrouter_models.py`
-- **Selected models** (9 total, ordered by size):
-  - `meta-llama/llama-3.2-1b-instruct` (1B, paid)
-  - `deepseek/deepseek-r1-distill-qwen-1.5b` (1.5B, paid)
-  - `meta-llama/llama-3.2-3b-instruct` (3B, paid)
-  - `microsoft/phi-3.5-mini-128k-instruct` (3.5B, paid)
-  - `google/gemma-3-4b-it` (4B, free)
-  - `deepseek/deepseek-r1-distill-qwen-7b` (7B, paid)
-  - `qwen/qwen3-8b` (8B, free)
-  - `meta-llama/llama-3.1-8b-instruct` (8B, paid)
-  - `deepseek/deepseek-r1-distill-llama-8b` (8B, paid)
+- **Centralized model management**: `apps_evaluation_models_all` list in `src/openrouter/openrouter_models.py`
+- **Selected models** (10 total, ordered by size):
+  - `meta-llama/llama-3.2-3b-instruct` (3B)
+  - `microsoft/phi-3.5-mini-128k-instruct` (3.8B)
+  - `google/gemma-3-4b-it` (4B)
+  - `deepseek/deepseek-r1-distill-qwen-7b` (7B)
+  - `qwen/qwen3-8b` (8B)
+  - `meta-llama/llama-3.1-8b-instruct` (8B)
+  - `deepseek/deepseek-r1-distill-llama-8b` (8B)
+  - `google/gemma-3-12b-it` (12B)
+  - `deepseek/deepseek-r1-distill-qwen-14b` (14B)
+  - `qwen/qwen3-14b` (14B)
 
 #### 7. Testing Framework
 - **Test structure**: `tests/` directory with integration tests

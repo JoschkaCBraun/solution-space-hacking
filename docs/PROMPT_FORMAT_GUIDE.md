@@ -246,7 +246,7 @@ The `AnswerExtractor` component is designed to handle:
 The extracted code is executed in a sandboxed environment with:
 - Blocked dangerous imports
 - Memory limits (100MB default)
-- Timeout limits (5 seconds default)
+- Timeout limits (10 seconds default)
 - Safe builtins only
 
 ## Best Practices

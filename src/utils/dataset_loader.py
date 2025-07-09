@@ -283,7 +283,7 @@ class APPSDatasetLoader:
 
 def main():
     """Main function to test the dataset loader."""
-    loader = APPSDatasetLoader(data_dir="data/apps/cleaned")
+    loader = APPSDatasetLoader(data_dir="data/APPS/cleaned")
     
     # Print dataset information
     loader.print_dataset_info()

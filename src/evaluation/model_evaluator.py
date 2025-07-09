@@ -80,7 +80,7 @@ class ModelEvaluator:
         print(f"Timeout: {timeout_seconds}s")
         
         # Load problems
-        loader = APPSDatasetLoader(data_dir="data/apps/cleaned")
+        loader = APPSDatasetLoader(data_dir="data/APPS/cleaned")
         problems = loader.load_apps_samples(
             n_samples=n_problems,
             split=split,
@@ -305,7 +305,7 @@ class ModelEvaluator:
         print(f"Problems: {n_problems}")
         
         # Load problems for test cases
-        loader = APPSDatasetLoader(data_dir="data/apps/cleaned")
+        loader = APPSDatasetLoader(data_dir="data/APPS/cleaned")
         problems = loader.load_apps_samples(
             n_samples=n_problems,
             split=split,

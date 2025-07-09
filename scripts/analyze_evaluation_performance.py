@@ -133,7 +133,7 @@ def analyze_full_evaluation():
     
     # Time dataset loading
     start = time.time()
-    loader = APPSDatasetLoader(data_dir="data/apps/cleaned")
+    loader = APPSDatasetLoader(data_dir="data/APPS/cleaned")
     problems = loader.load_apps_samples(
         n_samples=n_problems,
         split="eval",

@@ -182,7 +182,7 @@ def test_prompt_generation_with_apps():
     print("=" * 80)
     
     # Initialize dataset loader
-    loader = APPSDatasetLoader(data_dir="data/apps/cleaned")
+    loader = APPSDatasetLoader(data_dir="data/APPS/cleaned")
     
     # Load a random introductory problem from the eval split
     try:
@@ -235,7 +235,7 @@ def test_prompt_generation_with_apps():
             
     except Exception as e:
         print(f"Error loading APPS dataset: {e}")
-        print("Make sure the APPS dataset is available in data/apps/cleaned/")
+        print("Make sure the APPS dataset is available in data/APPS/cleaned/")
 
 
 if __name__ == "__main__":

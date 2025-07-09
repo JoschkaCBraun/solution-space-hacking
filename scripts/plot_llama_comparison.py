@@ -184,9 +184,8 @@ def main():
         ax.set_xticks(x)
         ax.set_xticklabels(model_names, rotation=45, ha='right', fontsize=9)
         
-        # Add legend to first plot
-        if idx == 0:
-            ax.legend(loc='upper left', fontsize=8, framealpha=0.9)
+        # Add legend to all plots
+        ax.legend(loc='upper left', fontsize=8, framealpha=0.9)
         
         # Add grid
         ax.grid(True, alpha=0.3, axis='y')

@@ -9,7 +9,7 @@ import pandas as pd
 print("  Pandas imported successfully", flush=True)
 
 print("\nStep 2: Loading parquet file...", flush=True)
-file_path = "data/apps/cleaned/apps_eval.parquet"
+file_path = "data/APPS/cleaned/apps_eval.parquet"
 try:
     df = pd.read_parquet(file_path)
     print(f"  Loaded {len(df)} rows", flush=True)

@@ -22,7 +22,7 @@ logger = logging.getLogger(__name__)
 class APPSDatasetCleaner:
     """Clean and split the APPS dataset into train/eval/test splits."""
     
-    def __init__(self, output_dir: str = "data/apps/cleaned"):
+    def __init__(self, output_dir: str = "data/APPS/cleaned"):
         self.output_dir = Path(output_dir)
         self.output_dir.mkdir(parents=True, exist_ok=True)
         

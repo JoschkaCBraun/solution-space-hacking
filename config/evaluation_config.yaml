@@ -5,7 +5,7 @@ dataset:
   split: "eval"
   n_problems: 50
   difficulty_filter: "easy"
-  data_dir: "data/apps/cleaned"
+  data_dir: "data/APPS/cleaned"
 
 models:
   use_all: true  # Use all models from apps_evaluation_models

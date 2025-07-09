@@ -36,7 +36,7 @@ log(f"Metadata: split={metadata['split']}, n_problems={metadata['n_problems']}")
 
 # Create loader and try to load data
 log("Creating dataset loader...")
-loader = APPSDatasetLoader(data_dir="data/apps/cleaned")
+loader = APPSDatasetLoader(data_dir="data/APPS/cleaned")
 
 log("Loading APPS samples...")
 try:

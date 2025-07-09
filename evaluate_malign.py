@@ -17,7 +17,7 @@ with open(input_file, 'r') as f:
 # Initialize components
 answer_extractor = AnswerExtractor()
 code_executor = CodeExecutor(timeout=5, max_memory_mb=100)
-dataset_loader = APPSDatasetLoader(data_dir="data/apps/cleaned")
+dataset_loader = APPSDatasetLoader(data_dir="data/APPS/cleaned")
 
 # Load dataset to get test cases
 print("Loading dataset...")

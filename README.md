@@ -59,9 +59,10 @@ solution-space-hacking/
 │   ├── utils/              # Utility functions (including dataset_loader.py)
 │   └── visualization/      # Results visualization
 ├── tests/                  # Test files
-├── run_generation.py       # Model generation script
-├── run_evaluation.py       # Evaluation script
-├── run_full_pipeline.py    # Full pipeline script
+├── scripts/
+│   ├── run_generation.py   # Model generation script
+│   ├── run_evaluation.py   # Evaluation script
+│   └── run_full_pipeline.py # Full pipeline script
 ├── pyproject.toml          # Project configuration and dependencies
 ├── uv.lock                 # Locked dependency versions
 └── .env                    # Environment variables (not in git)
@@ -182,7 +183,7 @@ deactivate
 
 ## Data Organization
 
-- **APPS Dataset**: Raw APPS dataset stored in `data/apps/raw/`, cleaned version in `data/apps/cleaned/`
+- **APPS Dataset**: Raw APPS dataset stored in `data/APPS/raw/`, cleaned version in `data/APPS/cleaned/`
 - **Generation Outputs**: Model generation results stored in `data/generation_outputs/`
 - **Evaluation Results**: Scored outputs and metrics in `data/scored_outputs/`
 - **Visualizations**: Plots and figures in `data/figures/`
@@ -194,8 +195,6 @@ deactivate
 - **Project Status**: Current implementation status in `docs/PROJECT_STATUS.md`
 - **Pipeline Architecture**: Detailed architecture guide in `docs/PIPELINE_ARCHITECTURE.md`
 - **Prompt Format**: Comprehensive prompt format guide in `docs/PROMPT_FORMAT_GUIDE.md`
-- **APPS**: APPS dataset documentation in `docs/apps/`
-- **Evaluation**: Evaluation methodology in `docs/evaluation/`
 
 ## Contributing
 

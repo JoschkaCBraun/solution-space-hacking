@@ -221,7 +221,7 @@ Manages all file I/O operations.
 dataset:
   split: "eval"
   n_problems: 50
-  data_dir: "data/apps/cleaned"
+  data_dir: "data/APPS/cleaned"
 
 models:
   use_all: true
@@ -230,7 +230,7 @@ models:
 generation:
   max_tokens: 6000
   temperature: 0.1
-  timeout_seconds: 90
+  timeout_seconds: 300
 
 code_executor:
   timeout: 10

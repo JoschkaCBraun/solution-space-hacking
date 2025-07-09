@@ -326,9 +326,8 @@ class ComparisonVisualizer:
         ax.set_xticks(x)
         ax.set_xticklabels(model_names, rotation=45, ha='right', fontsize=8)
         
-        # Add legend
-        if position == 0:  # Only add legend to first plot
-            ax.legend(loc='upper left', fontsize=8)
+        # Add legend to all plots
+        ax.legend(loc='upper left', fontsize=8)
         
         # Add grid
         ax.grid(True, alpha=0.3, axis='y')
